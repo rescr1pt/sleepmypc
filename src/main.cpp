@@ -46,19 +46,18 @@ public:
         if (!enabled_) {
             enabled_ = true;
 
-            // Activate hooks
-
+            /// Activate key hooks
             mouseHook_ = SetWindowsHookEx(
                 WH_MOUSE_LL,
                 mouseHookProcess,
                 hInstance_,
                 0);
-            /*
+
             keyboardHook_ = SetWindowsHookEx(
                 WH_KEYBOARD_LL,
                 keyboardHookProcess,
                 hInstance_,
-                0);*/
+                0);
 
             mouseInfo_.reset(now);
             prevIsActive_ = true;
@@ -81,7 +80,12 @@ public:
                 nextActive = false;
             }
 
+            if (nextActive && keyboardInfo_.pressed_) {
+                nextActive = true;
+            }
+
             mouseInfo_.reset(now);
+            keyboardInfo_.reset();
         }
         else {
             nextActive = false;
@@ -99,8 +103,14 @@ public:
                 nextActive = true;
             }
 
+            // Keyboard event 
+            if (!nextActive && keyboardInfo_.pressed_) {
+                nextActive = true;
+            }
+
             if (nextActive) {
                 mouseInfo_.reset(now);
+                keyboardInfo_.reset();
             }
         }
 
@@ -156,9 +166,6 @@ private:
     {
         auto& mouseInfo = instance().mouseInfo_;
 
-        // PKBDLLHOOKSTRUCT p = (PKBDLLHOOKSTRUCT)(lParam);
-
-        // If key is being pressed
         switch (wParam)
         {
             case WM_MOUSEMOVE:
@@ -176,11 +183,27 @@ private:
 
         return CallNextHookEx(NULL, nCode, wParam, lParam);
     }
-    /*
+    
     static LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam)
     {
+        auto& keyboardInfo = instance().keyboardInfo_;
+
+        switch (wParam)
+        {
+            case WM_KEYDOWN:
+            {
+                keyboardInfo.pressed_ = true;
+
+                break;
+            }
+            default:
+            {
+                break;
+            }
+        }
+
         return CallNextHookEx(NULL, nCode, wParam, lParam);
-    }*/
+    }
 
 private:
     struct MouseInfo
@@ -202,6 +225,16 @@ private:
             updateTimer(time);
         }
     } mouseInfo_;
+
+    struct KeyboardInfo
+    {
+        bool pressed_ = false;
+
+        void reset()
+        {
+            pressed_ = false;
+        }
+    } keyboardInfo_;
 
 private:
     FaceFrom* face_ = nullptr;
