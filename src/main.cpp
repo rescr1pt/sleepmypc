@@ -6,97 +6,228 @@
 
 #include <windows.h>
 
-class ExternalEventHooh
+class ExternalEventHook
 {
 public:
-    ExternalEventHooh(FaceFrom& face) : face_(face)
+    ExternalEventHook() 
     {
     }
 
-    void exec()
+    ~ExternalEventHook()
     {
-        static unsigned long cursorAllowable = 32;
-
-        if (face_.getConfInactive() == 0) {
-            lastCursorPos_.reset();
-            return;
+        if (mouseHook_) {
+            UnhookWindowsHookEx(mouseHook_);
         }
+
+        if (keyboardHook_) {
+            UnhookWindowsHookEx(keyboardHook_);
+        }
+    }
+
+    static ExternalEventHook& instance()
+    {
+        static ExternalEventHook me;
+        return me;
+    }
+
+    void init(FaceFrom& face, HINSTANCE hInstance)
+    {
+        face_ = &face;
+        hInstance_ = hInstance;
+    }
+
+    void execTimer()
+    {
+        const static size_t inactiveCursorMovePerSec = 10;
+
 
         auto now = SteadyClock::now();
 
-        if (!lastCursorPos_) {
-            lastCursorPos_ = std::make_unique<POINT>();
-            GetCursorPos(lastCursorPos_.get());
+        if (!enabled_) {
+            enabled_ = true;
+
+            // Activate hooks
+
+            mouseHook_ = SetWindowsHookEx(
+                WH_MOUSE_LL,
+                mouseHookProcess,
+                hInstance_,
+                0);
+            /*
+            keyboardHook_ = SetWindowsHookEx(
+                WH_KEYBOARD_LL,
+                keyboardHookProcess,
+                hInstance_,
+                0);*/
+
+            mouseInfo_.reset(now);
+            prevIsActive_ = true;
+
             idleTimer_ = now;
             progStateTimer_ = now;
         }
 
-        POINT cursorPos;
-        GetCursorPos(&cursorPos);
+        // User active detector
+        bool nextActive;
 
-        const unsigned long offsetX = abs(cursorPos.x - lastCursorPos_->x);
-        const unsigned long offsetY = abs(cursorPos.y - lastCursorPos_->y);
-        const bool mouseIsActive = (offsetX > cursorAllowable || offsetY > cursorAllowable);
+        if (prevIsActive_) {
+            nextActive = true;
+
+            if (nextActive && mouseInfo_.movedCount_ == 0) {
+                nextActive = false;
+            }
+
+            if (nextActive && !mouseInfo_.wasAction_) {
+                nextActive = false;
+            }
+
+            mouseInfo_.reset(now);
+        }
+        else {
+            nextActive = false;
+
+            // Mouse move event
+            auto idleTimerDiff = std::chrono::duration_cast<std::chrono::milliseconds>(now - mouseInfo_.lastMoveTimer_);
+            if (!nextActive && idleTimerDiff.count() > 500) {
+                if ((mouseInfo_.movedCount_ > inactiveCursorMovePerSec)) {
+                    nextActive = true;
+                }
+                mouseInfo_.updateTimer(now);
+            }
+
+            if (!nextActive && mouseInfo_.wasAction_) {
+                nextActive = true;
+            }
+
+            if (nextActive) {
+                mouseInfo_.reset(now);
+            }
+        }
 
         // Active
-        if (mouseIsActive) {
-            *lastCursorPos_ = cursorPos;
-            face_.showWarning(false);
-            face_.updateProgState(true);
-
+        if (nextActive) {
             // Wakeup
             idleTimer_ = now;
             progStateTimer_ = now;
+
+            if (!prevIsActive_) {
+                face_->showWarning(false);
+                face_->updateProgState(true);
+            }
         }
         // Idle
         else {
             auto idleTimerDiff = std::chrono::duration_cast<std::chrono::seconds>(now - idleTimer_);
-            const size_t maxInactiveSeconds = face_.getConfInactive() * 60;
+            const size_t maxInactiveSeconds = face_->getConfInactive() * 60;
                         
             if ((size_t)idleTimerDiff.count() >= maxInactiveSeconds) {
-                face_.processTriggeredAction();
+                face_->processTriggeredAction();
 
                 // Cannot restart
                 idleTimer_ = now;
             }
 
-            if (face_.getConfWarn() > 0) {
+            // Warning window processing
+            if (face_->getConfWarn() > 0) {
                 size_t remainingSecs = maxInactiveSeconds - idleTimerDiff.count();
 
-                if (remainingSecs < face_.getConfWarn()) {
-                    if (!face_.isShowWarning()) {
-                        face_.showWarning(true);
+                if (remainingSecs < face_->getConfWarn()) {
+                    if (!face_->isShowWarning()) {
+                        face_->showWarning(true);
                     }
 
-                    face_.updateWarningCaption(remainingSecs);
+                    face_->updateWarningCaption(remainingSecs);
                 }
             }
             
-            auto progimerDiff = std::chrono::duration_cast<std::chrono::seconds>(now - progStateTimer_);
-            if (progimerDiff.count() > 2) {
-                face_.updateProgState(false);
+            // Progress label processing 
+            auto progTimerDiff = std::chrono::duration_cast<std::chrono::seconds>(now - progStateTimer_);
+            if (progTimerDiff.count() > 2) {
+                face_->updateProgState(false);
                 progStateTimer_ = now;
             }
         }
+
+        prevIsActive_ = nextActive;
     }
 
 private:
-    FaceFrom& face_;
-    std::unique_ptr<POINT> lastCursorPos_;
+    static LRESULT CALLBACK mouseHookProcess(int nCode, WPARAM wParam, LPARAM lParam)
+    {
+        auto& mouseInfo = instance().mouseInfo_;
+
+        // PKBDLLHOOKSTRUCT p = (PKBDLLHOOKSTRUCT)(lParam);
+
+        // If key is being pressed
+        switch (wParam)
+        {
+            case WM_MOUSEMOVE:
+            {
+                ++mouseInfo.movedCount_;
+      
+                break;
+            }
+            default:
+            {
+                mouseInfo.wasAction_ = true;
+                break;
+            }
+        }
+
+        return CallNextHookEx(NULL, nCode, wParam, lParam);
+    }
+    /*
+    static LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam)
+    {
+        return CallNextHookEx(NULL, nCode, wParam, lParam);
+    }*/
+
+private:
+    struct MouseInfo
+    {
+        size_t movedCount_ = 0;
+        bool wasAction_ = false;
+
+        SteadyClock::time_point lastMoveTimer_;
+
+        void updateTimer(const SteadyClock::time_point& time)
+        {
+            lastMoveTimer_ = time;
+        }
+
+        void reset(const SteadyClock::time_point& time)
+        {
+            wasAction_ = false;
+            movedCount_ = 0;
+            updateTimer(time);
+        }
+    } mouseInfo_;
+
+private:
+    FaceFrom* face_ = nullptr;
+    HINSTANCE hInstance_ = nullptr;
+
+    HHOOK mouseHook_ = nullptr;
+    HHOOK keyboardHook_ = nullptr;
+
     SteadyClock::time_point idleTimer_;
     SteadyClock::time_point progStateTimer_;
 
+    bool enabled_ = false;
+    bool prevIsActive_ = true;
     bool showWarn_ = false;
 };
 
-int WINAPI WinMain(HINSTANCE /*hInstance*/, HINSTANCE /*hPrevInstance*/, LPSTR /*lpCmdLine*/, int /*nShowCmd*/) 
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpCmdLine*/, int /*nShowCmd*/)
 {
-    FaceFrom face(0);
-    ExternalEventHooh timing(face);
+    auto& externalEventHook = ExternalEventHook::instance();
 
-    nana::timer timer{ std::chrono::milliseconds{500} };
-    timer.elapse([&timing] {
-        timing.exec();
+    FaceFrom face(0);
+    externalEventHook.init(face, hInstance);
+
+    nana::timer timer{ std::chrono::milliseconds{250} };
+    timer.elapse([&externalEventHook] {
+        externalEventHook.execTimer();
     });
     timer.start();
 
