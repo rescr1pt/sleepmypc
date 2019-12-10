@@ -7,6 +7,7 @@
 
 #include <nana/gui.hpp>
 #include <nana/gui/place.hpp>
+#include <nana/gui/widgets/checkbox.hpp>
 #include <nana/gui/widgets/label.hpp>
 #include <nana/gui/widgets/combox.hpp>
 #include <nana/gui/widgets/spinbox.hpp>
@@ -20,10 +21,32 @@
 
 typedef std::chrono::steady_clock SteadyClock;
 
+class NoticeForm : public nana::form
+{
+public:
+    enum class Action
+    {
+        DebugTriggeredAction,
+    };
+public:
+    NoticeForm(Action action, nana::window wd, const ::nana::size& sz = { 340, 200 }, const nana::appearance& apr = { true, true, false, false, false, false, false });
+    ~NoticeForm();
+
+private:
+    void init_();
+
+
+protected:
+    Action action_;
+    nana::place _place{ *this };
+    nana::label wLabel;
+};
+
+
 class WarnForm : public nana::form
 {
 public:
-    WarnForm(nana::window wd, const ::nana::size& sz = { 340, 120 }, const nana::appearance& apr = { true, true, false, false, false, false, false });
+    WarnForm(nana::window wd, const ::nana::size& sz = { 340, 140 }, const nana::appearance& apr = { true, true, false, false, false, false, false });
     ~WarnForm();
 
     void updateWarningCaption(size_t remainingTime, const std::string& option);
@@ -72,15 +95,16 @@ class FaceFrom : public nana::form
         void save();
 
         size_t action_ = 0;
-        size_t inactive_ = 0; // min
-        size_t warn_ = 0; // secs
+        size_t inactive_ = 60; // min
+        size_t warn_ = 120; // secs
+        bool checkMouseMovement_ = true;
 
     private:
         std::fstream fs_;
     };
 
 public:
-    FaceFrom(nana::window wd, const ::nana::size& sz = { 260, 200 }, const nana::appearance& apr = { true, true, false, false, false, false, false });
+    FaceFrom(nana::window wd, const ::nana::size& sz = { 260, 230 }, const nana::appearance& apr = { true, true, false, false, true /*min*/, false, false });
 
     ~FaceFrom();
 
@@ -94,6 +118,7 @@ public:
 
     size_t getConfInactive() const { return config_.inactive_; }
     size_t getConfWarn() const { return config_.warn_; }
+    bool isCheckMouseMovement() const { return config_.checkMouseMovement_; }
 
 private:
     void init_();
@@ -114,14 +139,17 @@ protected:
     nana::spinbox wSpinWarn_;
     nana::label wLabProgDesc_;
     nana::label wLabProgVal_;
+    nana::button wButtOptions_;
     nana::button wButtHistory_;
-    nana::panel<true> wPlace1_;
-    nana::panel<true> wPlace2_;
-    nana::panel<true> wPlace3_;
+    nana::panel<true> wEmptyPlace;
+    //nana::panel<true> wPlace2_;
+    //nana::panel<true> wPlace3_;
     nana::label wLabCop_;
+    nana::checkbox wCheckMouseMove_;
     nana::button wButtSave_;
     std::unique_ptr<HistoryForm> logForm_;
     std::unique_ptr<WarnForm> warnForm_;
+    std::unique_ptr<NoticeForm> noticeForm_;
 
     Config config_;
 };

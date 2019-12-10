@@ -5,7 +5,43 @@
 #include "sleepmypc.h"
 #include <ctime>   
 
-WarnForm::WarnForm(nana::window wd, const nana::size& sz /*= { 340, 120 }*/, const nana::appearance& apr /*= { true, true, false, false, false, false, false }*/) 
+NoticeForm::NoticeForm(Action action, nana::window wd, const ::nana::size& sz, const nana::appearance& apr)
+    : action_(action)
+    , nana::form(wd, sz, apr)
+{
+    init_();
+}
+
+NoticeForm::~NoticeForm()
+{
+
+}
+
+void NoticeForm::init_()
+{
+    _place.div("margin=5 <margin=5 gap=2 field1>");
+    caption("sleep my PC - notice");
+    
+    // wLabel
+    wLabel.create(*this);
+    _place["field1"] << wLabel;
+    wLabel.typeface(nana::paint::font("", 12, { 400, false, false, false }));
+    wLabel.transparent(true);
+    wLabel.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
+
+    switch (action_)
+    {
+        case NoticeForm::Action::DebugTriggeredAction:
+            wLabel.caption("Action triggered!");
+            break;
+        default:
+            break;
+    }
+
+    _place.collocate();
+}
+
+WarnForm::WarnForm(nana::window wd, const nana::size& sz, const nana::appearance& apr) 
     : nana::form(wd, sz, apr)
 {
     init_();
@@ -41,6 +77,7 @@ void WarnForm::init_()
 
     _place.collocate();
 }
+
 HistoryForm::HistoryForm(nana::window wd, const nana::size& sz /*= { 640, 480 }*/, const nana::appearance& apr /*= { true, true, false, false, false, false, false }*/)
     : nana::form(wd, sz, apr)
 {
@@ -91,7 +128,7 @@ void HistoryForm::loadFile()
 {    
     wBoxLog_.reset();
 
-    fs_.open(getFileName(), std::fstream::in);
+    fs_.open(getFileName(), std::fstream::in | std::ios::app);
 
     if (fs_.is_open()) {
         std::string line;
@@ -182,20 +219,63 @@ void FaceFrom::processTriggeredAction()
     fwrite(writeMsg.c_str(), 1, writeMsg.size(), file);
 
     fclose(file);
+
+#ifdef _DEBUG
+    noticeForm_ = std::make_unique<NoticeForm>(NoticeForm::Action::DebugTriggeredAction, *this);
+    noticeForm_->show();
+    noticeForm_->modality();
+#else
+    switch (wCombo_.option())
+    {
+        // Shutdown
+        case 0:
+        {
+            system("shutdown /s /f");
+            break;
+        }
+        // Restart
+        case 1:
+        {
+            system("shutdown /r /f");
+            break;
+        }
+        // Log off
+        case 2:
+        {
+            system("shutdown /l /f");
+            break;
+        }
+        // Hibernation 
+        case 3:
+        {
+            system("shutdown /h /f");
+            break;
+        }
+        default:
+        {
+            break;
+        }
+    }
+#endif
 }
 
 void FaceFrom::init_()
 {
     config_.init();
 
-    nana::paint::font labelsFont("", 11, { 400, true, true, false });
-    nana::color labelsFgColor(22, 22, 22);
+    static const nana::paint::font labelsFont("", 11, { 400, true, true, false });
+    static const nana::color labelsFgColor(22, 22, 22);
+
+    this->icon(nana::paint::image("sleepmypc.ico"));
 
     this->caption("sleep my PC");
     this->bgcolor(nana::color(234, 243, 255));
 
-    place_.div("margin=8 <grid=[2,7] margin=4 gap=6 wGrid>");
+    place_.div("margin=8 <grid=[2,8] margin=4 gap=6 wGrid>");
     
+    wEmptyPlace.create(*this);
+    wEmptyPlace.transparent(true);
+
     // wComboLab
     wComboLab_.create(*this);
     place_["wGrid"] << wComboLab_;
@@ -212,7 +292,8 @@ void FaceFrom::init_()
     wCombo_.bgcolor(nana::color(255, 255, 155));
     wCombo_.push_back("Shutdown");
     wCombo_.push_back("Restart");
-    wCombo_.push_back("Logout");
+    wCombo_.push_back("Log off");
+    wCombo_.push_back("Hibernation");
     wCombo_.option(0);
     wCombo_.events().selected([&]()
     {
@@ -233,7 +314,6 @@ void FaceFrom::init_()
     place_["wGrid"] << wSpinIdle_;
     wSpinIdle_.modifier("", " min");
     wSpinIdle_.range(1, 460800, 1); // 320 months 
-    wSpinIdle_.value(std::to_string(60)); // 1 hours
     wSpinIdle_.events().text_changed([&]()
     {
         updateWarnSpinboxRange();
@@ -255,7 +335,6 @@ void FaceFrom::init_()
     place_["wGrid"] << wSpinWarn_;
     wSpinWarn_.modifier("", " secs");
     wSpinWarn_.range(1, ((wSpinIdle_.range_int().second * 60) - 1), 1); // like idle timer -1
-    wSpinWarn_.value(std::to_string(120)); // 120 seconds
     wSpinWarn_.events().text_changed([&]()
     {
         updateConfigState();
@@ -276,17 +355,27 @@ void FaceFrom::init_()
     wLabProgVal_.typeface(nana::paint::font("", 11, { 400, false, false, false }));
     wLabProgVal_.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
 
-    // wPlace1
-    wPlace1_.create(*this);
-    wPlace1_.transparent(true);
-    place_["wGrid"] << wPlace1_;
+    place_["wGrid"] << wEmptyPlace;
+
+    // wCheckMouseMove
+    wCheckMouseMove_.create(*this);
+    wCheckMouseMove_.transparent(true);
+    place_["wGrid"] << wCheckMouseMove_;
+    wCheckMouseMove_.caption("Check mouse");
+    wCheckMouseMove_.typeface(nana::paint::font("", 11, { 400, false, false, false }));
+    wCheckMouseMove_.fgcolor(labelsFgColor);
+    wCheckMouseMove_.events().checked([&]()
+    {
+        updateConfigState();
+    });
+
+    place_["wGrid"] << wEmptyPlace;
 
     // wButtHistory
     wButtHistory_.create(*this);
     place_["wGrid"] << wButtHistory_;
     wButtHistory_.typeface(nana::paint::font("", 12, { 400, false, false, false }));
     wButtHistory_.caption("History");
-    HistoryForm* h = new HistoryForm{ *this };
     wButtHistory_.events().click([&]()
     {
         logForm_.reset();
@@ -295,15 +384,9 @@ void FaceFrom::init_()
     });
 
 
-    // wPlace2
-    wPlace2_.create(*this);
-    wPlace2_.transparent(true);
-    place_["wGrid"] << wPlace2_;
-
-    // wPlace3
-    wPlace3_.create(*this);
-    wPlace3_.transparent(true);
-    place_["wGrid"] << wPlace3_;
+    // Spaces
+    place_["wGrid"] << wEmptyPlace;
+    place_["wGrid"] << wEmptyPlace;
 
     // wLabCop
     wLabCop_.create(*this);
@@ -322,14 +405,18 @@ void FaceFrom::init_()
         config_.action_ = wCombo_.option();
         config_.inactive_ = wSpinIdle_.to_int();
         config_.warn_ = wSpinWarn_.to_int();
+        config_.checkMouseMovement_ = (wCheckMouseMove_.checked() ? 1 : 0);
         config_.save();
         updateConfigState();
     });
 
 
+    // First values
     wCombo_.option(config_.action_);
     wSpinIdle_.value(std::to_string(config_.inactive_));
     wSpinWarn_.value(std::to_string(config_.warn_));
+    wCheckMouseMove_.check(config_.checkMouseMovement_);
+
     updateWarnSpinboxRange();
 
     updateConfigState();
@@ -342,7 +429,8 @@ void FaceFrom::updateConfigState()
 {
     if (wCombo_.option() == config_.action_
         && wSpinIdle_.to_int() == config_.inactive_
-        && wSpinWarn_.to_int() == config_.warn_)
+        && wSpinWarn_.to_int() == config_.warn_
+        && wCheckMouseMove_.checked() == config_.checkMouseMovement_)
     {
         wButtSave_.bgcolor(nana::color(30, 240, 30));
         wButtSave_.caption("Saved");
@@ -393,12 +481,18 @@ void FaceFrom::Config::init()
 
     if (fs_.is_open()) {
         std::string line;
+
         std::getline(fs_, line);
         action_ = std::stoull(line);
+
         std::getline(fs_, line);
         inactive_ = std::stoull(line);
+
         std::getline(fs_, line);
         warn_ = std::stoull(line);
+
+        std::getline(fs_, line);
+        checkMouseMovement_= std::stoul(line) != 0;
     }
 
     fs_.close();
@@ -411,8 +505,12 @@ void FaceFrom::Config::save()
     }
 
     fs_.open("sleepmypc.ini", std::fstream::out | std::ios::trunc);
-    fs_ << action_ << std::endl << inactive_ << std::endl << warn_ << std::endl;
+    
+    fs_ << action_ << std::endl
+        << inactive_ << std::endl
+        << warn_ << std::endl
+        << checkMouseMovement_ << std::endl;
+    
     fs_.flush();
     fs_.close();
 }
-

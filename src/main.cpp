@@ -38,6 +38,11 @@ public:
 
     void execTimer()
     {
+        // No config file
+        if (face_->getConfInactive() == 0) {
+            return;
+        }
+
         const static size_t inactiveCursorMovePerSec = 10;
 
 
@@ -72,8 +77,10 @@ public:
         if (prevIsActive_) {
             nextActive = true;
 
-            if (nextActive && mouseInfo_.movedCount_ == 0) {
-                nextActive = false;
+            if (face_->isCheckMouseMovement()) {
+                if (nextActive && mouseInfo_.movedCount_ == 0) {
+                    nextActive = false;
+                }
             }
 
             if (nextActive && !mouseInfo_.wasAction_) {
@@ -91,12 +98,14 @@ public:
             nextActive = false;
 
             // Mouse move event
-            auto idleTimerDiff = std::chrono::duration_cast<std::chrono::milliseconds>(now - mouseInfo_.lastMoveTimer_);
-            if (!nextActive && idleTimerDiff.count() > 500) {
-                if ((mouseInfo_.movedCount_ > inactiveCursorMovePerSec)) {
-                    nextActive = true;
+            if (face_->isCheckMouseMovement()) {
+                auto idleTimerDiff = std::chrono::duration_cast<std::chrono::milliseconds>(now - mouseInfo_.lastMoveTimer_);
+                if (!nextActive && idleTimerDiff.count() > 500) {
+                    if ((mouseInfo_.movedCount_ > inactiveCursorMovePerSec)) {
+                        nextActive = true;
+                    }
+                    mouseInfo_.updateTimer(now);
                 }
-                mouseInfo_.updateTimer(now);
             }
 
             if (!nextActive && mouseInfo_.wasAction_) {
@@ -265,6 +274,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
     timer.start();
 
     face.show();
+
     nana::exec();
     timer.stop();
 
