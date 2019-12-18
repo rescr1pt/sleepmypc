@@ -38,18 +38,23 @@ public:
 
     void execTimer()
     {
-        // No config file
-        if (face_->getConfInactive() == 0) {
+        // Disabled
+        if (face_->getConfInactive() == 0 || face_->actionIsNone()) {
+            if (wasEnabled_) {
+                wasEnabled_ = false;
+
+                UnhookWindowsHookEx(mouseHook_);
+                UnhookWindowsHookEx(keyboardHook_);
+            }
             return;
         }
 
         const static size_t inactiveCursorMovePerSec = 10;
 
-
         auto now = SteadyClock::now();
 
-        if (!enabled_) {
-            enabled_ = true;
+        if (!wasEnabled_) {
+            wasEnabled_ = true;
 
             /// Activate key hooks
             mouseHook_ = SetWindowsHookEx(
@@ -255,7 +260,7 @@ private:
     SteadyClock::time_point idleTimer_;
     SteadyClock::time_point progStateTimer_;
 
-    bool enabled_ = false;
+    bool wasEnabled_ = false;
     bool prevIsActive_ = true;
     bool showWarn_ = false;
 };

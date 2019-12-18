@@ -27,6 +27,7 @@ public:
     enum class Action
     {
         DebugTriggeredAction,
+        TriggeredInvalidAction,
     };
 public:
     NoticeForm(Action action, nana::window wd, const ::nana::size& sz = { 340, 200 }, const nana::appearance& apr = { true, true, false, false, false, false, false });
@@ -85,6 +86,15 @@ protected:
 
 class FaceFrom : public nana::form
 {
+    enum class EAction : size_t
+    {
+        No,
+        Shutdown,
+        Restart,
+        Logoff,
+        Hibernation
+    };
+
     struct Config
     {
         Config();
@@ -94,7 +104,7 @@ class FaceFrom : public nana::form
 
         void save();
 
-        size_t action_ = 0;
+        EAction action_ = EAction::No;
         size_t inactive_ = 60; // min
         size_t warn_ = 120; // secs
         bool checkMouseMovement_ = true;
@@ -118,6 +128,7 @@ public:
 
     size_t getConfInactive() const { return config_.inactive_; }
     size_t getConfWarn() const { return config_.warn_; }
+    bool actionIsNone() const { return config_.action_ == EAction::No; }
     bool isCheckMouseMovement() const { return config_.checkMouseMovement_; }
 
 private:

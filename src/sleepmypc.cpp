@@ -34,6 +34,9 @@ void NoticeForm::init_()
         case NoticeForm::Action::DebugTriggeredAction:
             wLabel.caption("Action triggered!");
             break;
+        case NoticeForm::Action::TriggeredInvalidAction:
+            wLabel.caption("Triggered an invalid action!");
+            break;
         default:
             break;
     }
@@ -225,34 +228,41 @@ void FaceFrom::processTriggeredAction()
     noticeForm_->show();
     noticeForm_->modality();
 #else
-    switch (wCombo_.option())
+
+    const EAction action = (EAction)wCombo_.option();
+    switch (action)
     {
         // Shutdown
-        case 0:
+        case EAction::Shutdown:
         {
             system("shutdown /s /f");
             break;
         }
         // Restart
-        case 1:
+        case EAction::Restart:
         {
             system("shutdown /r /f");
             break;
         }
         // Log off
-        case 2:
+        case EAction::Logoff:
         {
             system("shutdown /l /f");
             break;
         }
         // Hibernation 
-        case 3:
+        case EAction::Hibernation:
         {
             system("shutdown /h /f");
             break;
         }
+        case EAction::No:
         default:
         {
+            noticeForm_ = std::make_unique<NoticeForm>(NoticeForm::Action::TriggeredInvalidAction, *this);
+            noticeForm_->show();
+            noticeForm_->modality();
+     
             break;
         }
     }
@@ -290,11 +300,12 @@ void FaceFrom::init_()
     wCombo_.create(*this);
     place_["wGrid"] << wCombo_;
     wCombo_.bgcolor(nana::color(255, 255, 155));
+    wCombo_.push_back("No");
     wCombo_.push_back("Shutdown");
     wCombo_.push_back("Restart");
     wCombo_.push_back("Log off");
     wCombo_.push_back("Hibernation");
-    wCombo_.option(0);
+    wCombo_.option((size_t)EAction::No);
     wCombo_.events().selected([&]()
     {
         updateConfigState();
@@ -402,17 +413,18 @@ void FaceFrom::init_()
     wButtSave_.typeface(nana::paint::font("", 12, { 400, false, false, false }));
     wButtSave_.events().click([&]()
     {
-        config_.action_ = wCombo_.option();
+        config_.action_ = (EAction)wCombo_.option();
         config_.inactive_ = wSpinIdle_.to_int();
         config_.warn_ = wSpinWarn_.to_int();
         config_.checkMouseMovement_ = (wCheckMouseMove_.checked() ? 1 : 0);
         config_.save();
+
         updateConfigState();
     });
 
 
     // First values
-    wCombo_.option(config_.action_);
+    wCombo_.option((size_t)config_.action_);
     wSpinIdle_.value(std::to_string(config_.inactive_));
     wSpinWarn_.value(std::to_string(config_.warn_));
     wCheckMouseMove_.check(config_.checkMouseMovement_);
@@ -427,7 +439,7 @@ void FaceFrom::init_()
 
 void FaceFrom::updateConfigState()
 {
-    if (wCombo_.option() == config_.action_
+    if (wCombo_.option() == (size_t)config_.action_
         && wSpinIdle_.to_int() == config_.inactive_
         && wSpinWarn_.to_int() == config_.warn_
         && wCheckMouseMove_.checked() == config_.checkMouseMovement_)
@@ -483,7 +495,7 @@ void FaceFrom::Config::init()
         std::string line;
 
         std::getline(fs_, line);
-        action_ = std::stoull(line);
+        action_ = (EAction)std::stoull(line);
 
         std::getline(fs_, line);
         inactive_ = std::stoull(line);
@@ -506,7 +518,7 @@ void FaceFrom::Config::save()
 
     fs_.open("sleepmypc.ini", std::fstream::out | std::ios::trunc);
     
-    fs_ << action_ << std::endl
+    fs_ << (size_t)action_ << std::endl
         << inactive_ << std::endl
         << warn_ << std::endl
         << checkMouseMovement_ << std::endl;
