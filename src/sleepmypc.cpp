@@ -5,6 +5,73 @@
 #include "sleepmypc.h"
 #include <ctime>   
 
+bool timeIntervalIsSet(const TimeIntervalInfo& timeIntervalInfo) 
+{
+    return timeIntervalInfo.beginHours_ != 0 
+        || timeIntervalInfo.beginMinutes_ != 0 
+        || timeIntervalInfo.endHours_ != 0 
+        || timeIntervalInfo.endMinutes_ != 0;
+}
+
+bool TimeIntervalInfo::setTextInFormat(const std::string& textFormat)
+{
+    // hh:mm - hh:mm
+    if (textFormat.size() != 13) {
+        return false;
+    }
+
+    beginHours_ = (unsigned short)std::stoul(textFormat.substr(0, 2));
+    beginMinutes_ = (unsigned short)std::stoul(textFormat.substr(3, 2));
+    endHours_ = (unsigned short)std::stoul(textFormat.substr(8, 2));
+    endMinutes_ = (unsigned short)std::stoul(textFormat.substr(11, 2));
+
+    return true;
+}
+
+std::string& TimeIntervalInfo::getInTextFormat() const
+{
+    inTextBuffer_.clear();
+    addTimeLikeValue(beginHours_);
+    inTextBuffer_ += ':';
+    addTimeLikeValue(beginMinutes_);
+    inTextBuffer_ += " - ";
+
+    addTimeLikeValue(endHours_);
+    inTextBuffer_ += ':';
+    addTimeLikeValue(endMinutes_);
+    return inTextBuffer_;
+}
+
+bool TimeIntervalInfo::isEq(const TimeIntervalInfo& right) const
+{
+    return beginHours_ == right.beginHours_ && beginMinutes_ == right.beginMinutes_ && endHours_ == right.endHours_ && endMinutes_ == right.endMinutes_;
+}
+
+bool TimeIntervalInfo::isInInterval(unsigned short hours, unsigned short minutes) const
+{
+    const float currentD = hours + (0.01f * minutes);
+    const float beginD = beginHours_ + (0.01f * beginMinutes_);
+    const float endD = endHours_ + (0.01f * endMinutes_);
+
+    if (currentD >= beginD && currentD < endD) {
+        return true;
+    }
+    else if (beginD > endD && (currentD >= beginD || currentD < endD)) {
+        return true;
+    }
+    
+    return false;
+}
+
+void TimeIntervalInfo::addTimeLikeValue(unsigned short val) const
+{
+    if (val < 10) {
+        inTextBuffer_ += '0';
+    }
+
+    inTextBuffer_ += std::to_string(val);
+}
+
 NoticeForm::NoticeForm(Action action, nana::window wd, const ::nana::size& sz, const nana::appearance& apr)
     : action_(action)
     , nana::form(wd, sz, apr)
@@ -146,6 +213,83 @@ void HistoryForm::loadFile()
     }
 }
 
+TimeIntervalForm::TimeIntervalForm(const TimeIntervalInfo& initTimeIntervalInfo, nana::window wd, const nana::size& sz, const nana::appearance& apr)
+    : timeIntervalInfo_(initTimeIntervalInfo)
+    , nana::form(wd, sz, apr)
+{
+    init_();
+}
+
+TimeIntervalForm::~TimeIntervalForm()
+{
+
+}
+
+void TimeIntervalForm::init_()
+{
+    place_.div("margin=4 <grid=[3,3] margin=4 gap=4 wGrid>");
+    caption("Time interval selector");
+
+    static const nana::paint::font labelsFont("", 11, { 400, true, true, false });
+
+    // To fill empty places
+    static nana::panel<true> wEmptyPlace;
+    wEmptyPlace.create(*this);
+    wEmptyPlace.transparent(true);
+
+    wLabBegin_.create(*this);
+    place_["wGrid"] << wLabBegin_;
+    wLabBegin_.typeface(labelsFont);
+    wLabBegin_.caption("Begin:");
+    wLabBegin_.transparent(true);
+    wLabBegin_.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
+
+    wSpinBeginHours_.create(*this);
+    place_["wGrid"] << wSpinBeginHours_;
+
+    wSpinBeginMinutes_.create(*this);
+    place_["wGrid"] << wSpinBeginMinutes_;
+
+    wLabEnd_.create(*this);
+    place_["wGrid"] << wLabEnd_;
+    wLabEnd_.typeface(labelsFont);
+    wLabEnd_.caption("End:");
+    wLabEnd_.transparent(true);
+    wLabEnd_.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
+
+    wSpinEndHours_.create(*this);
+    place_["wGrid"] << wSpinEndHours_;
+
+    wSpinEndMinutes_.create(*this);
+    place_["wGrid"] << wSpinEndMinutes_;
+
+    place_["wGrid"] << wEmptyPlace;
+    place_["wGrid"] << wEmptyPlace;
+
+    // wButtSave
+    wButtSave_.create(*this);
+    place_["wGrid"] << wButtSave_;
+    wButtSave_.caption("Ok");
+    wButtSave_.bgcolor(nana::colors::light_green);
+    wButtSave_.events().click([&]()
+    {
+        timeIntervalInfo_.beginHours_ = wSpinBeginHours_.to_int();
+        timeIntervalInfo_.beginMinutes_ = wSpinBeginMinutes_.to_int();
+        timeIntervalInfo_.endHours_ = wSpinEndHours_.to_int();
+        timeIntervalInfo_.endMinutes_ = wSpinEndMinutes_.to_int();
+        close();
+    });
+
+    // Init values
+    wSpinBeginHours_.caption(std::to_string(timeIntervalInfo_.beginHours_));
+    wSpinBeginMinutes_.caption(std::to_string(timeIntervalInfo_.beginMinutes_));
+    wSpinEndHours_.caption(std::to_string(timeIntervalInfo_.endHours_));
+    wSpinEndMinutes_.caption(std::to_string(timeIntervalInfo_.endMinutes_));
+
+    place_.collocate();
+}
+
+
 FaceFrom::FaceFrom(nana::window wd, const nana::size& sz /*= { 260, 200 }*/, const nana::appearance& apr /*= { true, true, false, false, false, false, false }*/)
     : nana::form(wd, sz, apr)
 {
@@ -185,22 +329,32 @@ bool FaceFrom::isShowWarning() const
     return warnForm_.get();
 }
 
-void FaceFrom::updateProgState(bool active)
+void FaceFrom::updateProgState(ECurrentStatus currentStatus)
 {
-    if (active) {
-        wLabProgVal_.caption(getProgActiveVal());
-        wLabProgVal_.bgcolor(nana::color(140, 140, 140));
-    }
-    else {
-        wLabProgVal_.caption(getProgIdleVal());
-        wLabProgVal_.bgcolor(nana::color(255, 227, 50));
+    switch (currentStatus)
+    {
+        case FaceFrom::ECurrentStatus::Active:
+            wLabProgVal_.caption("Active");
+            wLabProgVal_.bgcolor(nana::colors::yellow_green);
+
+            break;
+        case FaceFrom::ECurrentStatus::Inactive:
+            wLabProgVal_.caption("Idle");
+            wLabProgVal_.bgcolor(nana::colors::yellow);
+
+            break;
+        case FaceFrom::ECurrentStatus::Disabled:
+        default:
+            wLabProgVal_.caption("Disabled");
+            wLabProgVal_.bgcolor(nana::colors::button_face);
+            break;
     }
 }
 
 void FaceFrom::updateWarningCaption(size_t remainingTime)
 {
     if (warnForm_) {
-        warnForm_->updateWarningCaption(remainingTime, wCombo_.caption());
+        warnForm_->updateWarningCaption(remainingTime, wComboAction_.caption());
     }
 }
 
@@ -216,7 +370,7 @@ void FaceFrom::processTriggeredAction()
     // Remove endline
     writeMsg.append(date, strlen(date) - 1); 
     writeMsg += "\t";
-    writeMsg += wCombo_.caption();
+    writeMsg += wComboAction_.caption();
     writeMsg += "\r\n";
 
     fwrite(writeMsg.c_str(), 1, writeMsg.size(), file);
@@ -229,7 +383,7 @@ void FaceFrom::processTriggeredAction()
     noticeForm_->modality();
 #else
 
-    const EAction action = (EAction)wCombo_.option();
+    const EAction action = (EAction)wComboAction_.option();
     switch (action)
     {
         // Shutdown
@@ -269,6 +423,11 @@ void FaceFrom::processTriggeredAction()
 #endif
 }
 
+bool FaceFrom::isSetTimeInterval() const
+{
+    return timeIntervalIsSet(config_.timeInterval_);
+}
+
 void FaceFrom::init_()
 {
     config_.init();
@@ -281,37 +440,39 @@ void FaceFrom::init_()
     this->caption("sleep my PC");
     this->bgcolor(nana::color(234, 243, 255));
 
-    place_.div("margin=8 <grid=[2,8] margin=4 gap=6 wGrid>");
+    place_.div("margin=8 <grid=[2,9] margin=4 gap=6 wGrid>");
     
+    // Fill empty places
+    static nana::panel<true> wEmptyPlace;
     wEmptyPlace.create(*this);
     wEmptyPlace.transparent(true);
 
-    // wComboLab
-    wComboLab_.create(*this);
-    place_["wGrid"] << wComboLab_;
-    wComboLab_.bgcolor(nana::color(212, 111, 111));
-    wComboLab_.typeface(labelsFont);
-    wComboLab_.caption("Action:");
-    wComboLab_.transparent(true);
-    wComboLab_.fgcolor(labelsFgColor);
-    wComboLab_.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
+    // wLabAction_
+    wLabAction_.create(*this);
+    place_["wGrid"] << wLabAction_;
+    wLabAction_.bgcolor(nana::color(212, 111, 111));
+    wLabAction_.typeface(labelsFont);
+    wLabAction_.caption("Action:");
+    wLabAction_.transparent(true);
+    wLabAction_.fgcolor(labelsFgColor);
+    wLabAction_.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
 
-    // wCombo
-    wCombo_.create(*this);
-    place_["wGrid"] << wCombo_;
-    wCombo_.bgcolor(nana::color(255, 255, 155));
-    wCombo_.push_back("No");
-    wCombo_.push_back("Shutdown");
-    wCombo_.push_back("Restart");
-    wCombo_.push_back("Log off");
-    wCombo_.push_back("Hibernation");
-    wCombo_.option((size_t)EAction::No);
-    wCombo_.events().selected([&]()
+    // wComboAction_
+    wComboAction_.create(*this);
+    place_["wGrid"] << wComboAction_;
+    wComboAction_.bgcolor(nana::color(255, 255, 155));
+    wComboAction_.push_back("No");
+    wComboAction_.push_back("Shutdown");
+    wComboAction_.push_back("Restart");
+    wComboAction_.push_back("Log off");
+    wComboAction_.push_back("Hibernation");
+    wComboAction_.option((size_t)EAction::No);
+    wComboAction_.events().selected([&]()
     {
         updateConfigState();
     });
 
-    // wLabIdleTimer
+    // wLabIdleTimer_
     wLabIdleTimer_.create(*this);
     place_["wGrid"] << wLabIdleTimer_;
     wLabIdleTimer_.typeface(labelsFont);
@@ -320,12 +481,12 @@ void FaceFrom::init_()
     wLabIdleTimer_.transparent(true);
     wLabIdleTimer_.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
 
-    // wSpinIdle
-    wSpinIdle_.create(*this);
-    place_["wGrid"] << wSpinIdle_;
-    wSpinIdle_.modifier("", " min");
-    wSpinIdle_.range(1, 460800, 1); // 320 months 
-    wSpinIdle_.events().text_changed([&]()
+    // wSpinIdleTimer_
+    wSpinIdleTimer_.create(*this);
+    place_["wGrid"] << wSpinIdleTimer_;
+    wSpinIdleTimer_.modifier("", " min");
+    wSpinIdleTimer_.range(1, 460800, 1); // 320 months 
+    wSpinIdleTimer_.events().text_changed([&]()
     {
         updateWarnSpinboxRange();
 
@@ -341,15 +502,46 @@ void FaceFrom::init_()
     wLabWarnTimer_.transparent(true);
     wLabWarnTimer_.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
 
-    // wSpinWarn
-    wSpinWarn_.create(*this);
-    place_["wGrid"] << wSpinWarn_;
-    wSpinWarn_.modifier("", " secs");
-    wSpinWarn_.range(1, ((wSpinIdle_.range_int().second * 60) - 1), 1); // like idle timer -1
-    wSpinWarn_.events().text_changed([&]()
+    // wSpinWarnTimer_
+    wSpinWarnTimer_.create(*this);
+    place_["wGrid"] << wSpinWarnTimer_;
+    wSpinWarnTimer_.modifier("", " secs");
+    wSpinWarnTimer_.range(1, ((wSpinIdleTimer_.range_int().second * 60) - 1), 1); // like idle timer -1
+    wSpinWarnTimer_.events().text_changed([&]()
     {
         updateConfigState();
     });
+
+    // wLabTimeIntervalDesc_
+    wLabTimeInterval_.create(*this);
+    place_["wGrid"] << wLabTimeInterval_;
+    wLabTimeInterval_.typeface(labelsFont);
+    wLabTimeInterval_.fgcolor(labelsFgColor);
+    wLabTimeInterval_.caption("In time interval:");
+    wLabTimeInterval_.transparent(true);
+    wLabTimeInterval_.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
+
+    // wComboTimeInterval_
+    wComboTimeInterval_.create(*this);
+    place_["wGrid"] << wComboTimeInterval_;
+    wComboTimeInterval_.bgcolor(nana::color(255, 255, 155));
+    wComboTimeInterval_.events().click([&]()
+    {
+        if (timeIntervalForm_) {
+            timeIntervalForm_ = std::make_unique<TimeIntervalForm>(timeIntervalForm_->getTimeIntervalInfo() ,*this);
+        }
+        else {
+            timeIntervalForm_ = std::make_unique<TimeIntervalForm>(config_.timeInterval_, *this);
+        }
+
+        timeIntervalForm_->show();
+        timeIntervalForm_->modality();
+
+        updateTimeIntervalCaption(timeIntervalForm_->getTimeIntervalInfo());
+        
+        updateConfigState();
+    });
+
 
     // wLabProgDesc
     wLabProgDesc_.create(*this);
@@ -413,36 +605,41 @@ void FaceFrom::init_()
     wButtSave_.typeface(nana::paint::font("", 12, { 400, false, false, false }));
     wButtSave_.events().click([&]()
     {
-        config_.action_ = (EAction)wCombo_.option();
-        config_.inactive_ = wSpinIdle_.to_int();
-        config_.warn_ = wSpinWarn_.to_int();
+        config_.action_ = (EAction)wComboAction_.option();
+        config_.inactive_ = wSpinIdleTimer_.to_int();
+        config_.warn_ = wSpinWarnTimer_.to_int();
         config_.checkMouseMovement_ = (wCheckMouseMove_.checked() ? 1 : 0);
+        if (timeIntervalForm_) {
+            config_.timeInterval_ = timeIntervalForm_->getTimeIntervalInfo();
+        }
+
         config_.save();
 
         updateConfigState();
     });
 
-
     // First values
-    wCombo_.option((size_t)config_.action_);
-    wSpinIdle_.value(std::to_string(config_.inactive_));
-    wSpinWarn_.value(std::to_string(config_.warn_));
+    wComboAction_.option((size_t)config_.action_);
+    wSpinIdleTimer_.value(std::to_string(config_.inactive_));
+    wSpinWarnTimer_.value(std::to_string(config_.warn_));
+    updateTimeIntervalCaption(config_.timeInterval_);
     wCheckMouseMove_.check(config_.checkMouseMovement_);
 
     updateWarnSpinboxRange();
 
     updateConfigState();
-    updateProgState(true);
+    updateProgState(ECurrentStatus::Disabled);
 
     place_.collocate();
 }
 
 void FaceFrom::updateConfigState()
 {
-    if (wCombo_.option() == (size_t)config_.action_
-        && wSpinIdle_.to_int() == config_.inactive_
-        && wSpinWarn_.to_int() == config_.warn_
-        && wCheckMouseMove_.checked() == config_.checkMouseMovement_)
+    if (wComboAction_.option() == (size_t)config_.action_
+        && wSpinIdleTimer_.to_int() == config_.inactive_
+        && wSpinWarnTimer_.to_int() == config_.warn_
+        && wCheckMouseMove_.checked() == config_.checkMouseMovement_
+        && (!timeIntervalForm_ || timeIntervalForm_->getTimeIntervalInfo().isEq(config_.timeInterval_)))
     {
         wButtSave_.bgcolor(nana::color(30, 240, 30));
         wButtSave_.caption("Saved");
@@ -457,24 +654,22 @@ void FaceFrom::updateConfigState()
 
 void FaceFrom::updateWarnSpinboxRange()
 {
-    int lastVal = wSpinWarn_.to_int();
-    wSpinWarn_.range(0, (wSpinIdle_.to_int() * 60) - 1, 1);
+    int lastVal = wSpinWarnTimer_.to_int();
+    wSpinWarnTimer_.range(0, (wSpinIdleTimer_.to_int() * 60) - 1, 1);
 
-    if (wSpinWarn_.range_int().second >= lastVal) {
-        wSpinWarn_.value(std::to_string(lastVal));
+    if (wSpinWarnTimer_.range_int().second >= lastVal) {
+        wSpinWarnTimer_.value(std::to_string(lastVal));
     }
 }
 
-std::string& FaceFrom::getProgActiveVal()
+void FaceFrom::updateTimeIntervalCaption(const TimeIntervalInfo& timeIntervalInfo)
 {
-    static std::string val("Active");
-    return val;
-}
-
-std::string& FaceFrom::getProgIdleVal()
-{
-    static std::string val("Idle");
-    return val;
+    if (!timeIntervalIsSet(timeIntervalInfo)) {
+        wComboTimeInterval_.caption("Any time");
+    }
+    else {
+        wComboTimeInterval_.caption(timeIntervalInfo.getInTextFormat());
+    }
 }
 
 FaceFrom::Config::Config()
@@ -504,6 +699,9 @@ void FaceFrom::Config::init()
         warn_ = std::stoull(line);
 
         std::getline(fs_, line);
+        timeInterval_.setTextInFormat(line);
+
+        std::getline(fs_, line);
         checkMouseMovement_= std::stoul(line) != 0;
     }
 
@@ -521,6 +719,7 @@ void FaceFrom::Config::save()
     fs_ << (size_t)action_ << std::endl
         << inactive_ << std::endl
         << warn_ << std::endl
+        << timeInterval_.getInTextFormat() << std::endl
         << checkMouseMovement_ << std::endl;
     
     fs_.flush();

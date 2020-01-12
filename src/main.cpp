@@ -38,14 +38,29 @@ public:
 
     void execTimer()
     {
+        bool isInTimeInterval = true;
+
+        if (face_->isSetTimeInterval()) {
+            time_t currentTime;
+            struct tm* localTime;
+            time(&currentTime);
+            localTime = localtime(&currentTime);
+
+            const auto& interval = face_->getTimeIntervalInfo();
+            isInTimeInterval = interval.isInInterval(localTime->tm_hour, localTime->tm_min);
+        }
+
         // Disabled
-        if (face_->getConfInactive() == 0 || face_->actionIsNone()) {
+        if (!isInTimeInterval || face_->getConfInactive() == 0 || face_->actionIsNone()) {
             if (wasEnabled_) {
                 wasEnabled_ = false;
+
+                face_->updateProgState(FaceFrom::ECurrentStatus::Disabled);
 
                 UnhookWindowsHookEx(mouseHook_);
                 UnhookWindowsHookEx(keyboardHook_);
             }
+
             return;
         }
 
@@ -136,7 +151,7 @@ public:
 
             if (!prevIsActive_) {
                 face_->showWarning(false);
-                face_->updateProgState(true);
+                face_->updateProgState(FaceFrom::ECurrentStatus::Active);
             }
         }
         // Idle
@@ -167,7 +182,7 @@ public:
             // Progress label processing 
             auto progTimerDiff = std::chrono::duration_cast<std::chrono::seconds>(now - progStateTimer_);
             if (progTimerDiff.count() > 2) {
-                face_->updateProgState(false);
+                face_->updateProgState(FaceFrom::ECurrentStatus::Inactive);
                 progStateTimer_ = now;
             }
         }
