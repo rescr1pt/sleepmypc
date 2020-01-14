@@ -264,14 +264,27 @@ void TimeIntervalForm::init_()
     place_["wGrid"] << wSpinEndMinutes_;
 
     place_["wGrid"] << wEmptyPlace;
-    place_["wGrid"] << wEmptyPlace;
+
+    // wButtAnyTime_
+    wButtAnyTime_.create(*this);
+    place_["wGrid"] << wButtAnyTime_;
+    wButtAnyTime_.caption("Any time");
+    wButtAnyTime_.bgcolor(nana::colors::light_green);
+    wButtAnyTime_.events().click([&]()
+    {
+        timeIntervalInfo_.beginHours_ = 0;
+        timeIntervalInfo_.beginMinutes_ = 0;
+        timeIntervalInfo_.endHours_ = 0;
+        timeIntervalInfo_.endMinutes_ = 0;
+        close();
+    });
 
     // wButtSave
-    wButtSave_.create(*this);
-    place_["wGrid"] << wButtSave_;
-    wButtSave_.caption("Ok");
-    wButtSave_.bgcolor(nana::colors::light_green);
-    wButtSave_.events().click([&]()
+    wButtSet_.create(*this);
+    place_["wGrid"] << wButtSet_;
+    wButtSet_.caption("Set");
+    wButtSet_.bgcolor(nana::colors::light_green);
+    wButtSet_.events().click([&]()
     {
         timeIntervalInfo_.beginHours_ = wSpinBeginHours_.to_int();
         timeIntervalInfo_.beginMinutes_ = wSpinBeginMinutes_.to_int();

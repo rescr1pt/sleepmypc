@@ -143,7 +143,8 @@ protected:
     HoursSpin wSpinEndHours_;
     MinutesSpin wSpinEndMinutes_;
     
-    nana::button wButtSave_;
+    nana::button wButtAnyTime_;
+    nana::button wButtSet_;
 
     TimeIntervalInfo timeIntervalInfo_;
     bool isTimeChanged_ = false;
