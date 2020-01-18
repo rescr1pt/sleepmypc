@@ -5,12 +5,10 @@
 #include "sleepmypc.h"
 #include <ctime>   
 
-bool timeIntervalIsSet(const TimeIntervalInfo& timeIntervalInfo) 
+bool timeIntervalIsAny(const TimeIntervalInfo& timeIntervalInfo) 
 {
-    return timeIntervalInfo.beginHours_ != 0 
-        || timeIntervalInfo.beginMinutes_ != 0 
-        || timeIntervalInfo.endHours_ != 0 
-        || timeIntervalInfo.endMinutes_ != 0;
+    return timeIntervalInfo.beginHours_ == timeIntervalInfo.endHours_
+        && timeIntervalInfo.beginMinutes_ == timeIntervalInfo.endMinutes_;
 }
 
 bool TimeIntervalInfo::setTextInFormat(const std::string& textFormat)
@@ -227,49 +225,44 @@ TimeIntervalForm::~TimeIntervalForm()
 
 void TimeIntervalForm::init_()
 {
-    place_.div("margin=4 <grid=[3,3] margin=4 gap=4 wGrid>");
     caption("Time interval selector");
 
     static const nana::paint::font labelsFont("", 11, { 400, true, true, false });
 
-    // To fill empty places
-    static nana::panel<true> wEmptyPlace;
-    wEmptyPlace.create(*this);
-    wEmptyPlace.transparent(true);
-
     wLabBegin_.create(*this);
-    place_["wGrid"] << wLabBegin_;
     wLabBegin_.typeface(labelsFont);
     wLabBegin_.caption("Begin:");
     wLabBegin_.transparent(true);
     wLabBegin_.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
 
-    wSpinBeginHours_.create(*this);
-    place_["wGrid"] << wSpinBeginHours_;
+    wComboBeginHours_.create(*this);
 
-    wSpinBeginMinutes_.create(*this);
-    place_["wGrid"] << wSpinBeginMinutes_;
+    wComboBeginMinutes_.create(*this);
 
     wLabEnd_.create(*this);
-    place_["wGrid"] << wLabEnd_;
     wLabEnd_.typeface(labelsFont);
     wLabEnd_.caption("End:");
     wLabEnd_.transparent(true);
     wLabEnd_.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
 
-    wSpinEndHours_.create(*this);
-    place_["wGrid"] << wSpinEndHours_;
+    wComboEndHours_.create(*this);
+    wComboEndMinutes_.create(*this);
 
-    wSpinEndMinutes_.create(*this);
-    place_["wGrid"] << wSpinEndMinutes_;
+    wButtSet_.create(*this);
+    wButtSet_.caption("Set");
+    wButtSet_.bgcolor(nana::colors::light_green);
+    wButtSet_.events().click([&]()
+    {
+        timeIntervalInfo_.beginHours_ = wComboBeginHours_.option();
+        timeIntervalInfo_.beginMinutes_ = wComboBeginMinutes_.option();
+        timeIntervalInfo_.endHours_ = wComboEndHours_.option();
+        timeIntervalInfo_.endMinutes_ = wComboEndMinutes_.option();
+        close();
+    });
 
-    place_["wGrid"] << wEmptyPlace;
-
-    // wButtAnyTime_
     wButtAnyTime_.create(*this);
-    place_["wGrid"] << wButtAnyTime_;
     wButtAnyTime_.caption("Any time");
-    wButtAnyTime_.bgcolor(nana::colors::light_green);
+    //wButtAnyTime_.bgcolor(nana::colors::light_green);
     wButtAnyTime_.events().click([&]()
     {
         timeIntervalInfo_.beginHours_ = 0;
@@ -279,29 +272,33 @@ void TimeIntervalForm::init_()
         close();
     });
 
-    // wButtSave
-    wButtSet_.create(*this);
-    place_["wGrid"] << wButtSet_;
-    wButtSet_.caption("Set");
-    wButtSet_.bgcolor(nana::colors::light_green);
-    wButtSet_.events().click([&]()
-    {
-        timeIntervalInfo_.beginHours_ = wSpinBeginHours_.to_int();
-        timeIntervalInfo_.beginMinutes_ = wSpinBeginMinutes_.to_int();
-        timeIntervalInfo_.endHours_ = wSpinEndHours_.to_int();
-        timeIntervalInfo_.endMinutes_ = wSpinEndMinutes_.to_int();
-        close();
-    });
-
     // Init values
-    wSpinBeginHours_.caption(std::to_string(timeIntervalInfo_.beginHours_));
-    wSpinBeginMinutes_.caption(std::to_string(timeIntervalInfo_.beginMinutes_));
-    wSpinEndHours_.caption(std::to_string(timeIntervalInfo_.endHours_));
-    wSpinEndMinutes_.caption(std::to_string(timeIntervalInfo_.endMinutes_));
+    wComboBeginHours_.option(timeIntervalInfo_.beginHours_);
+    wComboBeginMinutes_.option(timeIntervalInfo_.beginMinutes_);
+    wComboEndHours_.option(timeIntervalInfo_.endHours_);
+    wComboEndMinutes_.option(timeIntervalInfo_.endMinutes_);
+
+
+    /// Collate
+    place_.div("vert <>"
+        "<vert <beginTime> <endTime> weight=40% gap=4 margin=4> "
+        "<<> <setTime gap=4 margin=4> weight=20%>  "
+        "<weight=8%> "
+        "<anyTime weight=20% gap=4 margin=4> "
+        "<>");
+
+    place_["beginTime"] << wLabBegin_;
+    place_["beginTime"] << wComboBeginHours_;
+    place_["beginTime"] << wComboBeginMinutes_;
+    place_["endTime"] << wLabEnd_;
+    place_["endTime"] << wComboEndHours_;
+    place_["endTime"] << wComboEndMinutes_;
+    place_["setTime"] << wButtSet_;
+    place_["anyTime"] << wButtAnyTime_;
 
     place_.collocate();
-}
 
+}
 
 FaceFrom::FaceFrom(nana::window wd, const nana::size& sz /*= { 260, 200 }*/, const nana::appearance& apr /*= { true, true, false, false, false, false, false }*/)
     : nana::form(wd, sz, apr)
@@ -436,9 +433,9 @@ void FaceFrom::processTriggeredAction()
 #endif
 }
 
-bool FaceFrom::isSetTimeInterval() const
+bool FaceFrom::isAnyTimeInterval() const
 {
-    return timeIntervalIsSet(config_.timeInterval_);
+    return timeIntervalIsAny(config_.timeInterval_);
 }
 
 void FaceFrom::init_()
@@ -677,7 +674,7 @@ void FaceFrom::updateWarnSpinboxRange()
 
 void FaceFrom::updateTimeIntervalCaption(const TimeIntervalInfo& timeIntervalInfo)
 {
-    if (!timeIntervalIsSet(timeIntervalInfo)) {
+    if (timeIntervalIsAny(timeIntervalInfo)) {
         wComboTimeInterval_.caption("Any time");
     }
     else {

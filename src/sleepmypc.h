@@ -106,7 +106,7 @@ protected:
 class TimeIntervalForm : public nana::form
 {
 public:
-    TimeIntervalForm(const TimeIntervalInfo& initTimeIntervalInfo, nana::window wd, const ::nana::size& sz = { 180, 120 }, const nana::appearance& apr = { true, true, false, false, false, false, false });
+    TimeIntervalForm(const TimeIntervalInfo& initTimeIntervalInfo, nana::window wd, const ::nana::size& sz = { 180, 160 }, const nana::appearance& apr = { true, true, false, false, false, false, false });
     ~TimeIntervalForm();
 
     const TimeIntervalInfo& getTimeIntervalInfo() const { return timeIntervalInfo_; }
@@ -115,33 +115,53 @@ private:
     void init_();
 
 protected:
-    struct HoursSpin : nana::spinbox
+
+    struct HoursComboBox : nana::combox
     {
-        HoursSpin()
+        void _m_complete_creation() override
         {
-            range(0, 23, 1);
-            modifier("", " h");
+            std::string val; 
+            for (size_t i = 0; i < 24; ++i) {
+                
+                if (i < 10) {
+                    val = "0";
+                }
+                val += std::to_string(i);
+                val += "h";
+
+                push_back(std::move(val));
+            }
         }
     };
 
-    struct MinutesSpin : nana::spinbox
+    struct MinutesComboBox : nana::combox
     {
-        MinutesSpin()
+        void _m_complete_creation() override
         {
-            range(0, 59, 1);
-            modifier("", " m");
+            std::string val;
+            for (size_t i = 0; i < 60; ++i) {
+
+                if (i < 10) {
+                    val = "0";
+                }
+                val += std::to_string(i);
+                val += "m";
+
+                push_back(std::move(val));
+            }
         }
     };
+
+protected:
 
     nana::place place_{ *this };
 
     nana::label wLabBegin_;
     nana::label wLabEnd_;
-
-    HoursSpin wSpinBeginHours_;
-    MinutesSpin wSpinBeginMinutes_;
-    HoursSpin wSpinEndHours_;
-    MinutesSpin wSpinEndMinutes_;
+    HoursComboBox wComboBeginHours_;
+    MinutesComboBox wComboBeginMinutes_;
+    HoursComboBox wComboEndHours_;
+    MinutesComboBox wComboEndMinutes_;
     
     nana::button wButtAnyTime_;
     nana::button wButtSet_;
@@ -206,7 +226,7 @@ public:
     bool actionIsNone() const { return config_.action_ == EAction::No; }
     bool isCheckMouseMovement() const { return config_.checkMouseMovement_; }
     const TimeIntervalInfo& getTimeIntervalInfo() const { return config_.timeInterval_; }
-    bool isSetTimeInterval() const;
+    bool isAnyTimeInterval() const;
 
 private:
     void init_();

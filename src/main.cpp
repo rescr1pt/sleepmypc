@@ -40,7 +40,7 @@ public:
     {
         bool isInTimeInterval = true;
 
-        if (face_->isSetTimeInterval()) {
+        if (!face_->isAnyTimeInterval()) {
             time_t currentTime;
             struct tm* localTime;
             time(&currentTime);
