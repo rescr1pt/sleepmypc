@@ -172,6 +172,7 @@ void HistoryForm::init_()
     place_.collocate();
 
     wBoxLog_.editable(false);
+    wBoxLog_.enable_caret();
 
     wButtClear_.events().click([&]()
     {
