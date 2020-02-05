@@ -3,7 +3,7 @@
 */
 
 #include "sleepmypc.h"
-#include <ctime>   
+#include <ctime>
 
 bool timeIntervalIsAny(const TimeIntervalInfo& timeIntervalInfo) 
 {
@@ -254,10 +254,10 @@ void TimeIntervalForm::init_()
     wButtSet_.bgcolor(nana::colors::light_green);
     wButtSet_.events().click([&]()
     {
-        timeIntervalInfo_.beginHours_ = wComboBeginHours_.option();
-        timeIntervalInfo_.beginMinutes_ = wComboBeginMinutes_.option();
-        timeIntervalInfo_.endHours_ = wComboEndHours_.option();
-        timeIntervalInfo_.endMinutes_ = wComboEndMinutes_.option();
+        timeIntervalInfo_.beginHours_ = (unsigned short)wComboBeginHours_.option();
+        timeIntervalInfo_.beginMinutes_ = (unsigned short)wComboBeginMinutes_.option();
+        timeIntervalInfo_.endHours_ = (unsigned short)wComboEndHours_.option();
+        timeIntervalInfo_.endMinutes_ = (unsigned short)wComboEndMinutes_.option();
         close();
     });
 
@@ -395,18 +395,19 @@ void FaceFrom::processTriggeredAction()
 #else
 
     const EAction action = (EAction)wComboAction_.option();
+	
     switch (action)
     {
         // Shutdown
         case EAction::Shutdown:
         {
-            system("shutdown /s /f");
+            system("shutdown /s /f /t 1");			
             break;
         }
         // Restart
         case EAction::Restart:
         {
-            system("shutdown /r /f");
+            system("shutdown /r /f /t 1");
             break;
         }
         // Log off
@@ -431,6 +432,7 @@ void FaceFrom::processTriggeredAction()
             break;
         }
     }
+	
 #endif
 }
 
@@ -451,7 +453,7 @@ void FaceFrom::init_()
     this->caption("sleep my PC");
     this->bgcolor(nana::color(234, 243, 255));
 
-    place_.div("margin=8 <grid=[2,9] margin=4 gap=6 wGrid>");
+    place_.div("margin=8 <grid=[2,9] margin=4 gap=5 wGrid>");
     
     // Fill empty places
     static nana::panel<true> wEmptyPlace;

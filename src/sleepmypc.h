@@ -250,6 +250,7 @@ protected:
     nana::button wButtOptions_;
     nana::button wButtHistory_;
     nana::label wLabCop_;
+    nana::checkbox wCheckAutoStart_;
     nana::checkbox wCheckMouseMove_;
     nana::button wButtSave_;
 

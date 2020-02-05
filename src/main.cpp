@@ -161,9 +161,8 @@ public:
                         
             if ((size_t)idleTimerDiff.count() >= maxInactiveSeconds) {
                 face_->processTriggeredAction();
-
-                // Cannot restart
-                idleTimer_ = now;
+                face_->close();
+                return;
             }
 
             // Warning window processing
@@ -282,9 +281,14 @@ private:
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpCmdLine*/, int /*nShowCmd*/)
 {
-    auto& externalEventHook = ExternalEventHook::instance();
+    HANDLE duplicateInstanceMutex = CreateMutex(NULL, TRUE, L"rescr1pt_sleepmypc");
+    if (duplicateInstanceMutex == NULL || ERROR_ALREADY_EXISTS == GetLastError()) {
+        return 1;
+    }
 
     FaceFrom face(0);
+
+    auto& externalEventHook = ExternalEventHook::instance();
     externalEventHook.init(face, hInstance);
 
     nana::timer timer{ std::chrono::milliseconds{250} };
@@ -297,6 +301,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
 
     nana::exec();
     timer.stop();
+
+    ReleaseMutex(duplicateInstanceMutex);
+    CloseHandle(duplicateInstanceMutex);
 
     return 0;
 }
