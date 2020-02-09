@@ -1,0 +1,51 @@
+Sleep my PC -  an application that turns off the computer when the user is inactive.
+
+The application has easy to configure and includes features:
+- Support for event type when idle: shutdown, reboot, logout and hibernation
+- Remaining time when the user will be warned about the shutdown event
+- The time interval when the program begins to monitor the inactivity of the user
+- Shutdown event logging
+
+The user’s inaction is determined when he stops using keyboard or mouse devices.
+
+
+How to use, settings:
+
+- [Action]. The type of event that will be executed when the user is inactive.
+- [When inactive]. If the user was inactive for the specified time (in minutes), the selected event will be executed.
+- [Warn when left]. Warn the user about idle when the specified time (in seconds) remains before the event is completed.
+- [In time interval]. The time interval when the program begins to monitor user inactivity.
+- [Current status]. User activity indicator. If there was idle for 2 seconds, then it will switch to the "Idle" state. It shows whether the application is currently monitoring user inactivity.
+- [Check mouse]. If the flag is set, then the application will perceive the mouse movement as a user activity.
+- [History]. Shows the log of completed events on shutdown.
+
+
+How to download:
+
+The latest version of the application installer is located in the "sleepmypc /" folder
+
+
+Compile the application using Visual Studio:
+
+sleepmypc uses "Nana C ++" to create a graphical interface.
+You can get it from the official site.
+http://nanapro.org/en-us/
+
+Change the environment variables in the "./msvc.cmd" file.
+Run the bat file that will run Visual Studio with the specified libraries.
+
+
+Compile the installer:
+
+sleepmypc uses "Inno Setup" to make a installer file.
+You can get it from the official site.
+https://www.jrsoftware.org/
+
+Change the environment variables in the "./installer.cmd" file.
+Run the bat file that will make the installation file from the compiled application.
+
+
+Use at your own risk.
+
+Copyright (C)  Egorov Oleg (rescr1pt@ya.ru)
+Lisense file: COPYING
