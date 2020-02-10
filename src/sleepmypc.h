@@ -31,7 +31,7 @@ public:
         TriggeredInvalidAction,
     };
 public:
-    NoticeForm(Action action, nana::window wd, const ::nana::size& sz = { 340, 200 }, const nana::appearance& apr = { true, true, false, false, false, false, false });
+    NoticeForm(const std::string& message, nana::window wd, const ::nana::size& sz = { 340, 200 }, const nana::appearance& apr = { true, true, false, false, false, false, false });
     ~NoticeForm();
 
 private:
@@ -39,9 +39,9 @@ private:
 
 
 protected:
-    Action action_;
+    std::string message_;
     nana::place _place{ *this };
-    nana::label wLabel;
+    nana::label wLabel_;
 };
 
 
@@ -211,7 +211,6 @@ protected:
     std::unique_ptr<TimeIntervalForm> timeIntervalForm_;
     std::unique_ptr<HistoryForm> logForm_;
     std::unique_ptr<WarnForm> warnForm_;
-    std::unique_ptr<NoticeForm> noticeForm_;
 
     Config config_;
 };

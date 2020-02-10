@@ -11,6 +11,12 @@
 #include "ActionEnums.h"
 #include "TimeInterval.h"
 
+class ConfigException : public std::runtime_error
+{
+public:
+    ConfigException(const std::string& msg) : runtime_error(msg) {}
+};
+
 class Config
 {
 public:

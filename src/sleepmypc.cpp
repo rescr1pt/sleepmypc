@@ -13,8 +13,16 @@ bool timeIntervalIsAny(const TimeInterval& timeInterval)
         && timeInterval.beginMinutes_ == timeInterval.endMinutes_;
 }
 
-NoticeForm::NoticeForm(Action action, nana::window wd, const ::nana::size& sz, const nana::appearance& apr)
-    : action_(action)
+std::unique_ptr<NoticeForm> showNotice(const std::string& msg, nana::window wd)
+{
+    auto noticeForm = std::make_unique<NoticeForm>(msg, wd);
+    noticeForm->show();
+    noticeForm->modality();
+    return noticeForm;
+}
+
+NoticeForm::NoticeForm(const std::string& message, nana::window wd, const ::nana::size& sz, const nana::appearance& apr)
+    : message_(message)
     , nana::form(wd, sz, apr)
 {
     init_();
@@ -31,23 +39,13 @@ void NoticeForm::init_()
     caption("sleep my PC - notice");
     
     // wLabel
-    wLabel.create(*this);
-    _place["field1"] << wLabel;
-    wLabel.typeface(nana::paint::font("", 12, { 400, false, false, false }));
-    wLabel.transparent(true);
-    wLabel.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
+    wLabel_.create(*this);
+    _place["field1"] << wLabel_;
+    wLabel_.typeface(nana::paint::font("", 12, { 400, false, false, false }));
+    wLabel_.transparent(true);
+    wLabel_.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
 
-    switch (action_)
-    {
-        case NoticeForm::Action::DebugTriggeredAction:
-            wLabel.caption("Action triggered!");
-            break;
-        case NoticeForm::Action::TriggeredInvalidAction:
-            wLabel.caption("Triggered an invalid action!");
-            break;
-        default:
-            break;
-    }
+    wLabel_.caption(message_);
 
     _place.collocate();
 }
@@ -151,7 +149,7 @@ void HistoryForm::loadFile()
         fs_.close();
     }
     else {
-        wBoxLog_.append("Cannot open a history file!\r\n", true);
+        showNotice("Unable to open history file.", *this);
     }
 }
 
@@ -332,9 +330,7 @@ void FaceFrom::processTriggeredAction()
     fclose(file);
 
 #ifdef _DEBUG
-    noticeForm_ = std::make_unique<NoticeForm>(NoticeForm::Action::DebugTriggeredAction, *this);
-    noticeForm_->show();
-    noticeForm_->modality();
+    showNotice("Action triggered!", *this);
 #else
 
     const EAction action = (EAction)wComboAction_.option();
@@ -368,9 +364,7 @@ void FaceFrom::processTriggeredAction()
         case EAction::No:
         default:
         {
-            noticeForm_ = std::make_unique<NoticeForm>(NoticeForm::Action::TriggeredInvalidAction, *this);
-            noticeForm_->show();
-            noticeForm_->modality();
+            showNotice("Triggered an invalid action!", *this);
      
             break;
         }
@@ -386,7 +380,14 @@ bool FaceFrom::isAnyTimeInterval() const
 
 void FaceFrom::init_()
 {
-    config_.load();
+    try
+    {
+        config_.load();
+    }
+    catch (const ConfigException & e)
+    {        
+        showNotice(std::string("Error reading configuration file - ") + e.what(), *this);
+    }
 
     static const nana::paint::font labelsFont("", 11, { 400, true, true, false });
     static const nana::color labelsFgColor(22, 22, 22);
@@ -397,6 +398,9 @@ void FaceFrom::init_()
     if (applicationFilePath > 0) {
         app_path.resize(applicationFilePath);
         this->icon(nana::paint::image(app_path));
+    }
+    else {
+        showNotice("Unable to set icon for form", *this);
     }
 
     this->caption("sleep my PC");

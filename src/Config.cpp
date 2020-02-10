@@ -71,11 +71,11 @@ void Config::load()
         {
             size_t namePos = line.find('=');
             if (namePos == std::string::npos) {
-                continue;
+                throw ConfigException("Incorrect parameter definition in line: " + line);
             }
 
             if (namePos + 1 >= line.size()) {
-                continue;
+                throw ConfigException("Incorrect value definition in line: " + line);
             }
 
             std::string name = line.substr(0, namePos);
@@ -120,7 +120,7 @@ void Config::load()
                     }
                     default:
                     {
-                        break;
+                        throw ConfigException("Incorrect config parameter in line: " + line);
                     }
                 }
 
@@ -131,7 +131,7 @@ void Config::load()
 
         if (!readedParameters.empty())
         {
-            
+            throw ConfigException("Not all parameters were found in confg file");
         }
     }
 
@@ -147,7 +147,7 @@ void Config::save()
     fs_.open(CONFIG_FILE_NAME, std::fstream::out | std::ios::trunc);
 
     if (!fs_.is_open()) {
-        return;
+        throw ConfigException("Unable to open configuration file");
     }
 
     fs_ << CONFIG_STRINGS[(unsigned)eConfigParameters::Action] << '=' << (size_t)action_ << std::endl
