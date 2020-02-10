@@ -7,69 +7,10 @@
 
 #include <windows.h>
 
-bool timeIntervalIsAny(const TimeIntervalInfo& timeIntervalInfo) 
+bool timeIntervalIsAny(const TimeInterval& timeInterval) 
 {
-    return timeIntervalInfo.beginHours_ == timeIntervalInfo.endHours_
-        && timeIntervalInfo.beginMinutes_ == timeIntervalInfo.endMinutes_;
-}
-
-bool TimeIntervalInfo::setTextInFormat(const std::string& textFormat)
-{
-    // hh:mm - hh:mm
-    if (textFormat.size() != 13) {
-        return false;
-    }
-
-    beginHours_ = (unsigned short)std::stoul(textFormat.substr(0, 2));
-    beginMinutes_ = (unsigned short)std::stoul(textFormat.substr(3, 2));
-    endHours_ = (unsigned short)std::stoul(textFormat.substr(8, 2));
-    endMinutes_ = (unsigned short)std::stoul(textFormat.substr(11, 2));
-
-    return true;
-}
-
-std::string& TimeIntervalInfo::getInTextFormat() const
-{
-    inTextBuffer_.clear();
-    addTimeLikeValue(beginHours_);
-    inTextBuffer_ += ':';
-    addTimeLikeValue(beginMinutes_);
-    inTextBuffer_ += " - ";
-
-    addTimeLikeValue(endHours_);
-    inTextBuffer_ += ':';
-    addTimeLikeValue(endMinutes_);
-    return inTextBuffer_;
-}
-
-bool TimeIntervalInfo::isEq(const TimeIntervalInfo& right) const
-{
-    return beginHours_ == right.beginHours_ && beginMinutes_ == right.beginMinutes_ && endHours_ == right.endHours_ && endMinutes_ == right.endMinutes_;
-}
-
-bool TimeIntervalInfo::isInInterval(unsigned short hours, unsigned short minutes) const
-{
-    const float currentD = hours + (0.01f * minutes);
-    const float beginD = beginHours_ + (0.01f * beginMinutes_);
-    const float endD = endHours_ + (0.01f * endMinutes_);
-
-    if (currentD >= beginD && currentD < endD) {
-        return true;
-    }
-    else if (beginD > endD && (currentD >= beginD || currentD < endD)) {
-        return true;
-    }
-    
-    return false;
-}
-
-void TimeIntervalInfo::addTimeLikeValue(unsigned short val) const
-{
-    if (val < 10) {
-        inTextBuffer_ += '0';
-    }
-
-    inTextBuffer_ += std::to_string(val);
+    return timeInterval.beginHours_ == timeInterval.endHours_
+        && timeInterval.beginMinutes_ == timeInterval.endMinutes_;
 }
 
 NoticeForm::NoticeForm(Action action, nana::window wd, const ::nana::size& sz, const nana::appearance& apr)
@@ -214,8 +155,8 @@ void HistoryForm::loadFile()
     }
 }
 
-TimeIntervalForm::TimeIntervalForm(const TimeIntervalInfo& initTimeIntervalInfo, nana::window wd, const nana::size& sz, const nana::appearance& apr)
-    : timeIntervalInfo_(initTimeIntervalInfo)
+TimeIntervalForm::TimeIntervalForm(const TimeInterval& initTimeInterval, nana::window wd, const nana::size& sz, const nana::appearance& apr)
+    : timeInterval(initTimeInterval)
     , nana::form(wd, sz, apr)
 {
     init_();
@@ -256,10 +197,10 @@ void TimeIntervalForm::init_()
     wButtSet_.bgcolor(nana::colors::light_green);
     wButtSet_.events().click([&]()
     {
-        timeIntervalInfo_.beginHours_ = (unsigned short)wComboBeginHours_.option();
-        timeIntervalInfo_.beginMinutes_ = (unsigned short)wComboBeginMinutes_.option();
-        timeIntervalInfo_.endHours_ = (unsigned short)wComboEndHours_.option();
-        timeIntervalInfo_.endMinutes_ = (unsigned short)wComboEndMinutes_.option();
+        timeInterval.beginHours_ = (unsigned short)wComboBeginHours_.option();
+        timeInterval.beginMinutes_ = (unsigned short)wComboBeginMinutes_.option();
+        timeInterval.endHours_ = (unsigned short)wComboEndHours_.option();
+        timeInterval.endMinutes_ = (unsigned short)wComboEndMinutes_.option();
         close();
     });
 
@@ -268,18 +209,18 @@ void TimeIntervalForm::init_()
     //wButtAnyTime_.bgcolor(nana::colors::light_green);
     wButtAnyTime_.events().click([&]()
     {
-        timeIntervalInfo_.beginHours_ = 0;
-        timeIntervalInfo_.beginMinutes_ = 0;
-        timeIntervalInfo_.endHours_ = 0;
-        timeIntervalInfo_.endMinutes_ = 0;
+        timeInterval.beginHours_ = 0;
+        timeInterval.beginMinutes_ = 0;
+        timeInterval.endHours_ = 0;
+        timeInterval.endMinutes_ = 0;
         close();
     });
 
     // Init values
-    wComboBeginHours_.option(timeIntervalInfo_.beginHours_);
-    wComboBeginMinutes_.option(timeIntervalInfo_.beginMinutes_);
-    wComboEndHours_.option(timeIntervalInfo_.endHours_);
-    wComboEndMinutes_.option(timeIntervalInfo_.endMinutes_);
+    wComboBeginHours_.option(timeInterval.beginHours_);
+    wComboBeginMinutes_.option(timeInterval.beginMinutes_);
+    wComboEndHours_.option(timeInterval.endHours_);
+    wComboEndMinutes_.option(timeInterval.endMinutes_);
 
 
     /// Collate
@@ -445,7 +386,7 @@ bool FaceFrom::isAnyTimeInterval() const
 
 void FaceFrom::init_()
 {
-    config_.init();
+    config_.load();
 
     static const nana::paint::font labelsFont("", 11, { 400, true, true, false });
     static const nana::color labelsFgColor(22, 22, 22);
@@ -549,7 +490,7 @@ void FaceFrom::init_()
     wComboTimeInterval_.events().click([&]()
     {
         if (timeIntervalForm_) {
-            timeIntervalForm_ = std::make_unique<TimeIntervalForm>(timeIntervalForm_->getTimeIntervalInfo() ,*this);
+            timeIntervalForm_ = std::make_unique<TimeIntervalForm>(timeIntervalForm_->getTimeInterval() ,*this);
         }
         else {
             timeIntervalForm_ = std::make_unique<TimeIntervalForm>(config_.timeInterval_, *this);
@@ -558,7 +499,7 @@ void FaceFrom::init_()
         timeIntervalForm_->show();
         timeIntervalForm_->modality();
 
-        updateTimeIntervalCaption(timeIntervalForm_->getTimeIntervalInfo());
+        updateTimeIntervalCaption(timeIntervalForm_->getTimeInterval());
         
         updateConfigState();
     });
@@ -631,7 +572,7 @@ void FaceFrom::init_()
         config_.warn_ = wSpinWarnTimer_.to_int();
         config_.checkMouseMovement_ = (wCheckMouseMove_.checked() ? 1 : 0);
         if (timeIntervalForm_) {
-            config_.timeInterval_ = timeIntervalForm_->getTimeIntervalInfo();
+            config_.timeInterval_ = timeIntervalForm_->getTimeInterval();
         }
 
         config_.save();
@@ -660,7 +601,7 @@ void FaceFrom::updateConfigState()
         && wSpinIdleTimer_.to_int() == config_.inactive_
         && wSpinWarnTimer_.to_int() == config_.warn_
         && wCheckMouseMove_.checked() == config_.checkMouseMovement_
-        && (!timeIntervalForm_ || timeIntervalForm_->getTimeIntervalInfo().isEq(config_.timeInterval_)))
+        && (!timeIntervalForm_ || timeIntervalForm_->getTimeInterval().isEq(config_.timeInterval_)))
     {
         wButtSave_.bgcolor(nana::color(30, 240, 30));
         wButtSave_.caption("Saved");
@@ -683,66 +624,13 @@ void FaceFrom::updateWarnSpinboxRange()
     }
 }
 
-void FaceFrom::updateTimeIntervalCaption(const TimeIntervalInfo& timeIntervalInfo)
+void FaceFrom::updateTimeIntervalCaption(const TimeInterval& timeInterval)
 {
-    if (timeIntervalIsAny(timeIntervalInfo)) {
+    if (timeIntervalIsAny(timeInterval)) {
         wComboTimeInterval_.caption("Any time");
     }
     else {
-        wComboTimeInterval_.caption(timeIntervalInfo.getInTextFormat());
+        wComboTimeInterval_.caption(timeInterval.getInTextFormat());
     }
 }
 
-FaceFrom::Config::Config()
-{
-
-}
-
-FaceFrom::Config::~Config()
-{
-    fs_.close();
-}
-
-void FaceFrom::Config::init()
-{
-    fs_.open("sleepmypc.ini", std::fstream::in);
-
-    if (fs_.is_open()) {
-        std::string line;
-
-        std::getline(fs_, line);
-        action_ = (EAction)std::stoull(line);
-
-        std::getline(fs_, line);
-        inactive_ = std::stoull(line);
-
-        std::getline(fs_, line);
-        warn_ = std::stoull(line);
-
-        std::getline(fs_, line);
-        timeInterval_.setTextInFormat(line);
-
-        std::getline(fs_, line);
-        checkMouseMovement_= std::stoul(line) != 0;
-    }
-
-    fs_.close();
-}
-
-void FaceFrom::Config::save()
-{
-    if (fs_.is_open()) {
-        fs_.close();
-    }
-
-    fs_.open("sleepmypc.ini", std::fstream::out | std::ios::trunc);
-    
-    fs_ << (size_t)action_ << std::endl
-        << inactive_ << std::endl
-        << warn_ << std::endl
-        << timeInterval_.getInTextFormat() << std::endl
-        << checkMouseMovement_ << std::endl;
-    
-    fs_.flush();
-    fs_.close();
-}

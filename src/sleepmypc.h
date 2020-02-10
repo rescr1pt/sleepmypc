@@ -17,28 +17,10 @@
 #include <nana/gui/timer.hpp>
 
 #include <chrono>
-#include <fstream>
+
+#include "Config.h"
 
 typedef std::chrono::steady_clock SteadyClock;
-
-struct TimeIntervalInfo
-{
-    bool setTextInFormat(const std::string& textFormat);
-
-    std::string& getInTextFormat() const;
-
-    bool isEq(const TimeIntervalInfo& right) const;
-    bool isInInterval(unsigned short hours, unsigned short minutes) const;
-
-    unsigned short beginHours_ = 0;
-    unsigned short beginMinutes_ = 0;
-    unsigned short endHours_ = 0;
-    unsigned short endMinutes_ = 0;
-
-private:
-    mutable std::string inTextBuffer_;
-    void addTimeLikeValue(unsigned short val) const;
-};
 
 class NoticeForm : public nana::form
 {
@@ -106,10 +88,10 @@ protected:
 class TimeIntervalForm : public nana::form
 {
 public:
-    TimeIntervalForm(const TimeIntervalInfo& initTimeIntervalInfo, nana::window wd, const ::nana::size& sz = { 180, 160 }, const nana::appearance& apr = { true, true, false, false, false, false, false });
+    TimeIntervalForm(const TimeInterval& initTimeInterval, nana::window wd, const ::nana::size& sz = { 180, 160 }, const nana::appearance& apr = { true, true, false, false, false, false, false });
     ~TimeIntervalForm();
 
-    const TimeIntervalInfo& getTimeIntervalInfo() const { return timeIntervalInfo_; }
+    const TimeInterval& getTimeInterval() const { return timeInterval; }
 
 private:
     void init_();
@@ -166,40 +148,12 @@ protected:
     nana::button wButtAnyTime_;
     nana::button wButtSet_;
 
-    TimeIntervalInfo timeIntervalInfo_;
+    TimeInterval timeInterval;
     bool isTimeChanged_ = false;
 };
 
 class FaceFrom : public nana::form
 {
-    enum class EAction : size_t
-    {
-        No,
-        Shutdown,
-        Restart,
-        Logoff,
-        Hibernation
-    };
-
-    struct Config
-    {
-        Config();
-        ~Config();
-
-        void init();
-
-        void save();
-
-        EAction action_ = EAction::No;
-        size_t inactive_ = 60; // min
-        size_t warn_ = 120; // secs
-        TimeIntervalInfo timeInterval_;
-        bool checkMouseMovement_ = true;
-
-    private:
-        std::fstream fs_;
-    };
-
 public:
     enum class ECurrentStatus
     {
@@ -225,7 +179,7 @@ public:
     size_t getConfWarn() const { return config_.warn_; }
     bool actionIsNone() const { return config_.action_ == EAction::No; }
     bool isCheckMouseMovement() const { return config_.checkMouseMovement_; }
-    const TimeIntervalInfo& getTimeIntervalInfo() const { return config_.timeInterval_; }
+    const TimeInterval& getTimeInterval() const { return config_.timeInterval_; }
     bool isAnyTimeInterval() const;
 
 private:
@@ -233,7 +187,7 @@ private:
 
     void updateConfigState();
     void updateWarnSpinboxRange();
-    void updateTimeIntervalCaption(const TimeIntervalInfo& timeIntervalInfo);
+    void updateTimeIntervalCaption(const TimeInterval& timeInterval);
 
 protected:
     nana::place place_ { *this };
