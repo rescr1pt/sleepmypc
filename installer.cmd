@@ -1,5 +1,4 @@
 set SLEEPMYPC_SRC_EXE=msvc/x64/Release/sleepmypc.exe
-set SLEEPMYPC_ICO=src/sleepmypc.ico
 set SLEEPMYPC_COPYING=COPYING
 set SLEEPMYPC_README=README
 

@@ -5,6 +5,8 @@
 #include "sleepmypc.h"
 #include <ctime>
 
+#include <windows.h>
+
 bool timeIntervalIsAny(const TimeIntervalInfo& timeIntervalInfo) 
 {
     return timeIntervalInfo.beginHours_ == timeIntervalInfo.endHours_
@@ -448,7 +450,13 @@ void FaceFrom::init_()
     static const nana::paint::font labelsFont("", 11, { 400, true, true, false });
     static const nana::color labelsFgColor(22, 22, 22);
 
-    this->icon(nana::paint::image("sleepmypc.ico"));
+    // Set ico to form
+    std::wstring app_path(1024, '\0');
+    size_t applicationFilePath = (size_t)GetModuleFileNameW(0, &app_path.front(), (DWORD)app_path.size());
+    if (applicationFilePath > 0) {
+        app_path.resize(applicationFilePath);
+        this->icon(nana::paint::image(app_path));
+    }
 
     this->caption("sleep my PC");
     this->bgcolor(nana::color(234, 243, 255));
