@@ -100,38 +100,12 @@ protected:
 
     struct HoursComboBox : nana::combox
     {
-        void _m_complete_creation() override
-        {
-            std::string val; 
-            for (size_t i = 0; i < 24; ++i) {
-                
-                if (i < 10) {
-                    val = "0";
-                }
-                val += std::to_string(i);
-                val += "h";
-
-                push_back(std::move(val));
-            }
-        }
+        void _m_complete_creation() override;
     };
 
     struct MinutesComboBox : nana::combox
     {
-        void _m_complete_creation() override
-        {
-            std::string val;
-            for (size_t i = 0; i < 60; ++i) {
-
-                if (i < 10) {
-                    val = "0";
-                }
-                val += std::to_string(i);
-                val += "m";
-
-                push_back(std::move(val));
-            }
-        }
+        void _m_complete_creation() override;
     };
 
 protected:

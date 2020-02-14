@@ -47,7 +47,7 @@ public:
             localTime = localtime(&currentTime);
 
             const auto& interval = face_->getTimeInterval();
-            isInTimeInterval = interval.isInInterval((unsigned short)localTime->tm_hour, (unsigned short)localTime->tm_min);
+            isInTimeInterval = interval.isInInterval((unsigned char)localTime->tm_hour, (unsigned char)localTime->tm_min);
         }
 
         // Disabled

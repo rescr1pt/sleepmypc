@@ -8,10 +8,10 @@ bool TimeInterval::setTextInFormat(const std::string& textFormat)
         return false;
     }
 
-    beginHours_ = (unsigned short)std::stoul(textFormat.substr(0, 2));
-    beginMinutes_ = (unsigned short)std::stoul(textFormat.substr(3, 2));
-    endHours_ = (unsigned short)std::stoul(textFormat.substr(8, 2));
-    endMinutes_ = (unsigned short)std::stoul(textFormat.substr(11, 2));
+    beginHours_ = (unsigned char)std::stoul(textFormat.substr(0, 2));
+    beginMinutes_ = (unsigned char)std::stoul(textFormat.substr(3, 2));
+    endHours_ = (unsigned char)std::stoul(textFormat.substr(8, 2));
+    endMinutes_ = (unsigned char)std::stoul(textFormat.substr(11, 2));
 
     return true;
 }
@@ -35,7 +35,7 @@ bool TimeInterval::isEq(const TimeInterval& right) const
     return beginHours_ == right.beginHours_ && beginMinutes_ == right.beginMinutes_ && endHours_ == right.endHours_ && endMinutes_ == right.endMinutes_;
 }
 
-bool TimeInterval::isInInterval(unsigned short hours, unsigned short minutes) const
+bool TimeInterval::isInInterval(unsigned char hours, unsigned char minutes) const
 {
     const float currentD = hours + (0.01f * minutes);
     const float beginD = beginHours_ + (0.01f * beginMinutes_);
@@ -51,7 +51,7 @@ bool TimeInterval::isInInterval(unsigned short hours, unsigned short minutes) co
     return false;
 }
 
-void TimeInterval::addTimeLikeValue(unsigned short val) const
+void TimeInterval::addTimeLikeValue(unsigned char val) const
 {
     if (val < 10) {
         inTextBuffer_ += '0';

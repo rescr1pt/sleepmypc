@@ -195,10 +195,10 @@ void TimeIntervalForm::init_()
     wButtSet_.bgcolor(nana::colors::light_green);
     wButtSet_.events().click([&]()
     {
-        timeInterval.beginHours_ = (unsigned short)wComboBeginHours_.option();
-        timeInterval.beginMinutes_ = (unsigned short)wComboBeginMinutes_.option();
-        timeInterval.endHours_ = (unsigned short)wComboEndHours_.option();
-        timeInterval.endMinutes_ = (unsigned short)wComboEndMinutes_.option();
+        timeInterval.beginHours_ = (unsigned char)wComboBeginHours_.option();
+        timeInterval.beginMinutes_ = (unsigned char)wComboBeginMinutes_.option();
+        timeInterval.endHours_ = (unsigned char)wComboEndHours_.option();
+        timeInterval.endMinutes_ = (unsigned char)wComboEndMinutes_.option();
         close();
     });
 
@@ -638,3 +638,36 @@ void FaceFrom::updateTimeIntervalCaption(const TimeInterval& timeInterval)
     }
 }
 
+void TimeIntervalForm::HoursComboBox::_m_complete_creation()
+{
+    nana::combox::_m_complete_creation();
+
+    std::string val;
+    for (unsigned char i = 0; i < 24; ++i) {
+
+        if (i < 10) {
+            val = "0";
+        }
+        val += std::to_string(i);
+        val += "h";
+
+        push_back(std::move(val));
+    }
+}
+
+void TimeIntervalForm::MinutesComboBox::_m_complete_creation()
+{
+    nana::combox::_m_complete_creation();
+
+    std::string val;
+    for (unsigned char i = 0; i < 60; ++i) {
+
+        if (i < 10) {
+            val = "0";
+        }
+        val += std::to_string(i);
+        val += "m";
+
+        push_back(std::move(val));
+    }
+}

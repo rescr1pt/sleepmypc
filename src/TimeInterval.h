@@ -14,16 +14,16 @@ struct TimeInterval
     std::string& getInTextFormat() const;
 
     bool isEq(const TimeInterval& right) const;
-    bool isInInterval(unsigned short hours, unsigned short minutes) const;
+    bool isInInterval(unsigned char hours, unsigned char minutes) const;
 
-    unsigned short beginHours_ = 0;
-    unsigned short beginMinutes_ = 0;
-    unsigned short endHours_ = 0;
-    unsigned short endMinutes_ = 0;
+    unsigned char beginHours_ = 0;
+    unsigned char beginMinutes_ = 0;
+    unsigned char endHours_ = 0;
+    unsigned char endMinutes_ = 0;
 
 private:
     mutable std::string inTextBuffer_;
-    void addTimeLikeValue(unsigned short val) const;
+    void addTimeLikeValue(unsigned char val) const;
 };
 
 #endif
