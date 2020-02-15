@@ -12,6 +12,7 @@ enum class eConfigParameters : unsigned
     Inactive,
     Warn,
     Interval,
+    Days,
     CheckMouseMovement,
     Max
 };
@@ -21,7 +22,8 @@ static const std::string CONFIG_STRINGS[static_cast<size_t>(eConfigParameters::M
     "ACTION", 
     "INACTIVE", 
     "WARN", 
-    "INTERVAL", 
+    "TIME_INTERVAL",
+    "DAYS",
     "CHECK_MOUSE_MOVEMENT" 
 };
 
@@ -110,7 +112,13 @@ void Config::load()
                     }
                     case eConfigParameters::Interval:
                     {
-                        timeInterval_.setTextInFormat(value);
+                        dayInterval_.time_.setTextInFormat(value);
+
+                        break;
+                    }
+                    case eConfigParameters::Days:
+                    {
+                        dayInterval_.days_ = (unsigned char)std::stoul(value);
                         break;
                     }
                     case eConfigParameters::CheckMouseMovement:
@@ -153,7 +161,8 @@ void Config::save()
     fs_ << CONFIG_STRINGS[(unsigned)eConfigParameters::Action] << '=' << (size_t)action_ << std::endl
         << CONFIG_STRINGS[(unsigned)eConfigParameters::Inactive] << '=' << inactive_ << std::endl
         << CONFIG_STRINGS[(unsigned)eConfigParameters::Warn] << '=' << warn_ << std::endl
-        << CONFIG_STRINGS[(unsigned)eConfigParameters::Interval] << '=' << timeInterval_.getInTextFormat() << std::endl
+        << CONFIG_STRINGS[(unsigned)eConfigParameters::Interval] << '=' << dayInterval_.time_.getInTextFormat() << std::endl
+        << CONFIG_STRINGS[(unsigned)eConfigParameters::Days] << '=' << (unsigned)dayInterval_.days_ << std::endl
         << CONFIG_STRINGS[(unsigned)eConfigParameters::CheckMouseMovement] << '=' << checkMouseMovement_ << std::endl;
 
     fs_.flush();

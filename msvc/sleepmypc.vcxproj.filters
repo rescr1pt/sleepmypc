@@ -27,6 +27,9 @@
     <ClCompile Include="..\src\TimeInterval.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\DayInterval.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\sleepmypc.h">
@@ -42,6 +45,9 @@
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="..\src\TimeInterval.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\DayInterval.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>

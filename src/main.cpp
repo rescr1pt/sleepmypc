@@ -38,16 +38,23 @@ public:
 
     void execTimer()
     {
-        bool isInTimeInterval = true;
+        bool isInTimeInterval = false;
 
-        if (!face_->isAnyTimeInterval()) {
+        if (face_->isAnyDayInterval()) {
+            isInTimeInterval = true;
+        }
+        else {
             time_t currentTime;
             struct tm* localTime;
             time(&currentTime);
             localTime = localtime(&currentTime);
 
-            const auto& interval = face_->getTimeInterval();
-            isInTimeInterval = interval.isInInterval((unsigned char)localTime->tm_hour, (unsigned char)localTime->tm_min);
+            const auto& interval = face_->getDayInterval();
+
+            if (interval.hasDay((unsigned char)localTime->tm_wday - 1) 
+                && interval.time_.isInInterval((unsigned char)localTime->tm_hour, (unsigned char)localTime->tm_min)) {
+                isInTimeInterval = true;
+            }
         }
 
         // Disabled

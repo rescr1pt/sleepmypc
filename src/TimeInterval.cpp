@@ -4,7 +4,7 @@
 bool TimeInterval::setTextInFormat(const std::string& textFormat)
 {
     // hh:mm - hh:mm
-    if (textFormat.size() != 13) {
+    if (textFormat.size() != getTextFormatLength()) {
         return false;
     }
 

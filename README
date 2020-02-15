@@ -14,7 +14,7 @@ How to use, settings:
 - [Action]. The type of event that will be executed when the user is inactive.
 - [When inactive]. If the user was inactive for the specified time (in minutes), the selected event will be executed.
 - [Warn when left]. Warn the user about idle when the specified time (in seconds) remains before the event is completed.
-- [In time interval]. The time interval when the program begins to monitor user inactivity.
+- [In period]. The time period when the program begins to monitor user inactivity.
 - [Current status]. User activity indicator. If there was idle for 2 seconds, then it will switch to the "Idle" state. It shows whether the application is currently monitoring user inactivity.
 - [Check mouse]. If the flag is set, then the application will perceive the mouse movement as a user activity.
 - [History]. Shows the log of completed events on shutdown.

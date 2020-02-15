@@ -9,7 +9,7 @@
 #include <unordered_map>
 
 #include "ActionEnums.h"
-#include "TimeInterval.h"
+#include "DayInterval.h"
 
 class ConfigException : public std::runtime_error
 {
@@ -31,7 +31,7 @@ public:
     EAction action_ = EAction::No;
     size_t inactive_ = 60; // min
     size_t warn_ = 120; // secs
-    TimeInterval timeInterval_;
+    DayInterval dayInterval_;
     bool checkMouseMovement_ = true;
 
 private:

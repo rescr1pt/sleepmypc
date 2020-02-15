@@ -85,13 +85,13 @@ protected:
     std::fstream fs_;
 };
 
-class TimeIntervalForm : public nana::form
+class DayIntervalForm : public nana::form
 {
 public:
-    TimeIntervalForm(const TimeInterval& initTimeInterval, nana::window wd, const ::nana::size& sz = { 180, 160 }, const nana::appearance& apr = { true, true, false, false, false, false, false });
-    ~TimeIntervalForm();
+    DayIntervalForm(const DayInterval& initDayInterval, nana::window wd, const ::nana::size& sz = { 220, 140 }, const nana::appearance& apr = { true, true, false, false, false, false, false });
+    ~DayIntervalForm();
 
-    const TimeInterval& getTimeInterval() const { return timeInterval; }
+    const DayInterval& getDayInterval() const { return dayInterval_; }
 
 private:
     void init_();
@@ -112,17 +112,17 @@ protected:
 
     nana::place place_{ *this };
 
-    nana::label wLabBegin_;
-    nana::label wLabEnd_;
+    nana::label intervalSeparatorLabel_;
     HoursComboBox wComboBeginHours_;
     MinutesComboBox wComboBeginMinutes_;
     HoursComboBox wComboEndHours_;
     MinutesComboBox wComboEndMinutes_;
+    nana::checkbox weekCheckBoxes_[Days::DAY_MAX];
     
     nana::button wButtAnyTime_;
     nana::button wButtSet_;
 
-    TimeInterval timeInterval;
+    DayInterval dayInterval_;
     bool isTimeChanged_ = false;
 };
 
@@ -153,15 +153,15 @@ public:
     size_t getConfWarn() const { return config_.warn_; }
     bool actionIsNone() const { return config_.action_ == EAction::No; }
     bool isCheckMouseMovement() const { return config_.checkMouseMovement_; }
-    const TimeInterval& getTimeInterval() const { return config_.timeInterval_; }
-    bool isAnyTimeInterval() const;
+    const DayInterval& getDayInterval() const { return config_.dayInterval_; }
+    bool isAnyDayInterval() const;
 
 private:
     void init_();
 
     void updateConfigState();
     void updateWarnSpinboxRange();
-    void updateTimeIntervalCaption(const TimeInterval& timeInterval);
+    void updateDayIntervalCaption(const DayInterval& dayInterval);
 
 protected:
     nana::place place_ { *this };
@@ -171,8 +171,8 @@ protected:
     nana::spinbox wSpinIdleTimer_;
     nana::label wLabWarnTimer_;
     nana::spinbox wSpinWarnTimer_;
-    nana::label wLabTimeInterval_;
-    nana::combox wComboTimeInterval_;
+    nana::label dayIntervalLabel_;
+    nana::combox dayIntervalCombo_;
     nana::label wLabProgDesc_;
     nana::label wLabProgVal_;
     nana::button wButtOptions_;
@@ -182,7 +182,7 @@ protected:
     nana::checkbox wCheckMouseMove_;
     nana::button wButtSave_;
 
-    std::unique_ptr<TimeIntervalForm> timeIntervalForm_;
+    std::unique_ptr<DayIntervalForm> dayIntervalForm_;
     std::unique_ptr<HistoryForm> logForm_;
     std::unique_ptr<WarnForm> warnForm_;
 

@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\Config.cpp" />
+    <ClCompile Include="..\src\DayInterval.cpp" />
     <ClCompile Include="..\src\main.cpp" />
     <ClCompile Include="..\src\sleepmypc.cpp" />
     <ClCompile Include="..\src\TimeInterval.cpp" />
@@ -27,6 +28,7 @@
   <ItemGroup>
     <ClInclude Include="..\src\ActionEnums.h" />
     <ClInclude Include="..\src\Config.h" />
+    <ClInclude Include="..\src\DayInterval.h" />
     <ClInclude Include="..\src\sleepmypc.h" />
     <ClInclude Include="..\src\TimeInterval.h" />
     <ClInclude Include="resource.h" />

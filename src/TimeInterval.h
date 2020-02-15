@@ -9,6 +9,8 @@
 
 struct TimeInterval
 {
+    static inline const size_t getTextFormatLength() { return 13; }
+
     bool setTextInFormat(const std::string& textFormat);
 
     std::string& getInTextFormat() const;

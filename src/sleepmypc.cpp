@@ -7,10 +7,14 @@
 
 #include <windows.h>
 
-bool timeIntervalIsAny(const TimeInterval& timeInterval) 
+inline bool timeIntervalIsAny(const TimeInterval& timeInterval)
 {
-    return timeInterval.beginHours_ == timeInterval.endHours_
-        && timeInterval.beginMinutes_ == timeInterval.endMinutes_;
+    return timeInterval.beginHours_ == timeInterval.endHours_&& timeInterval.beginMinutes_ == timeInterval.endMinutes_;
+}
+
+inline bool dayIntervalIsAny(const DayInterval& dayInterval) 
+{
+    return dayInterval.isEnabledAllDays() && timeIntervalIsAny(dayInterval.time_);
 }
 
 std::unique_ptr<NoticeForm> showNotice(const std::string& msg, nana::window wd)
@@ -153,88 +157,100 @@ void HistoryForm::loadFile()
     }
 }
 
-TimeIntervalForm::TimeIntervalForm(const TimeInterval& initTimeInterval, nana::window wd, const nana::size& sz, const nana::appearance& apr)
-    : timeInterval(initTimeInterval)
+DayIntervalForm::DayIntervalForm(const DayInterval& initDayInterval, nana::window wd, const nana::size& sz, const nana::appearance& apr)
+    : dayInterval_(initDayInterval)
     , nana::form(wd, sz, apr)
 {
     init_();
 }
 
-TimeIntervalForm::~TimeIntervalForm()
+DayIntervalForm::~DayIntervalForm()
 {
 
 }
 
-void TimeIntervalForm::init_()
+void DayIntervalForm::init_()
 {
-    caption("Time interval selector");
+    caption("Day interval selector");
 
-    static const nana::paint::font labelsFont("", 11, { 400, true, true, false });
+    static const nana::paint::font labelsFont("", 11, { 400 });
 
-    wLabBegin_.create(*this);
-    wLabBegin_.typeface(labelsFont);
-    wLabBegin_.caption("Begin:");
-    wLabBegin_.transparent(true);
-    wLabBegin_.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
+    intervalSeparatorLabel_.create(*this);
+    intervalSeparatorLabel_.typeface(labelsFont);
+    intervalSeparatorLabel_.caption(" - ");
+    intervalSeparatorLabel_.transparent(true);
+    intervalSeparatorLabel_.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
 
     wComboBeginHours_.create(*this);
-
     wComboBeginMinutes_.create(*this);
-
-    wLabEnd_.create(*this);
-    wLabEnd_.typeface(labelsFont);
-    wLabEnd_.caption("End:");
-    wLabEnd_.transparent(true);
-    wLabEnd_.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
-
     wComboEndHours_.create(*this);
     wComboEndMinutes_.create(*this);
+
+    static const char weekDesc[Days::DAY_MAX][4] = { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" };
+
+    for (unsigned char i = 0; i < Days::DAY_MAX; ++i) {
+        auto& day = weekCheckBoxes_[i];
+        day.create(*this);
+        day.caption(weekDesc[i]);
+    }
 
     wButtSet_.create(*this);
     wButtSet_.caption("Set");
     wButtSet_.bgcolor(nana::colors::light_green);
     wButtSet_.events().click([&]()
     {
-        timeInterval.beginHours_ = (unsigned char)wComboBeginHours_.option();
-        timeInterval.beginMinutes_ = (unsigned char)wComboBeginMinutes_.option();
-        timeInterval.endHours_ = (unsigned char)wComboEndHours_.option();
-        timeInterval.endMinutes_ = (unsigned char)wComboEndMinutes_.option();
+        dayInterval_.disableAllDays();
+
+        for (unsigned char i = 0; i < Days::DAY_MAX; ++i) {
+            if (weekCheckBoxes_[i].checked()) {
+                dayInterval_.enableDay(i);
+            }
+        }
+
+        dayInterval_.time_.beginHours_ = (unsigned char)wComboBeginHours_.option();
+        dayInterval_.time_.beginMinutes_ = (unsigned char)wComboBeginMinutes_.option();
+        dayInterval_.time_.endHours_ = (unsigned char)wComboEndHours_.option();
+        dayInterval_.time_.endMinutes_ = (unsigned char)wComboEndMinutes_.option();
+
         close();
     });
 
     wButtAnyTime_.create(*this);
     wButtAnyTime_.caption("Any time");
-    //wButtAnyTime_.bgcolor(nana::colors::light_green);
     wButtAnyTime_.events().click([&]()
     {
-        timeInterval.beginHours_ = 0;
-        timeInterval.beginMinutes_ = 0;
-        timeInterval.endHours_ = 0;
-        timeInterval.endMinutes_ = 0;
+        dayInterval_.enableAllDays();
+        dayInterval_.time_.beginHours_ = 0;
+        dayInterval_.time_.beginMinutes_ = 0;
+        dayInterval_.time_.endHours_ = 0;
+        dayInterval_.time_.endMinutes_ = 0;
         close();
     });
 
     // Init values
-    wComboBeginHours_.option(timeInterval.beginHours_);
-    wComboBeginMinutes_.option(timeInterval.beginMinutes_);
-    wComboEndHours_.option(timeInterval.endHours_);
-    wComboEndMinutes_.option(timeInterval.endMinutes_);
+    for (unsigned char i = 0; i < Days::DAY_MAX; ++i) {
+        weekCheckBoxes_[i].check(dayInterval_.hasDay(i));
+    }
+    wComboBeginHours_.option(dayInterval_.time_.beginHours_);
+    wComboBeginMinutes_.option(dayInterval_.time_.beginMinutes_);
+    wComboEndHours_.option(dayInterval_.time_.endHours_);
+    wComboEndMinutes_.option(dayInterval_.time_.endMinutes_);
 
 
     /// Collate
-    place_.div("vert <>"
-        "<vert <beginTime> <endTime> weight=40% gap=4 margin=4> "
-        "<<> <setTime gap=4 margin=4> weight=20%>  "
-        "<weight=8%> "
-        "<anyTime weight=20% gap=4 margin=4> "
-        "<>");
+    place_.div("margin=4 vert"
+        "< weight=25% <intervalBegin> <vert intervalSeparator weight=20> <intervalEnd> >"
+        "<weight=10%> "
+        "< weight=20% <week3> >"
+        "< weight=20% <week4> >"
+        "<weight=10%> "
+        "< <anyTime> <setTime> >");
 
-    place_["beginTime"] << wLabBegin_;
-    place_["beginTime"] << wComboBeginHours_;
-    place_["beginTime"] << wComboBeginMinutes_;
-    place_["endTime"] << wLabEnd_;
-    place_["endTime"] << wComboEndHours_;
-    place_["endTime"] << wComboEndMinutes_;
+    place_["intervalBegin"] << wComboBeginHours_ << wComboBeginMinutes_;
+    place_["intervalSeparator"] << intervalSeparatorLabel_;
+    place_["intervalEnd"] << wComboEndHours_ << wComboEndMinutes_;
+    place_["week3"] << weekCheckBoxes_[0] << weekCheckBoxes_[1] << weekCheckBoxes_[2];
+    place_["week4"] << weekCheckBoxes_[3] << weekCheckBoxes_[4] << weekCheckBoxes_[5] << weekCheckBoxes_[6];
     place_["setTime"] << wButtSet_;
     place_["anyTime"] << wButtAnyTime_;
 
@@ -373,9 +389,9 @@ void FaceFrom::processTriggeredAction()
 #endif
 }
 
-bool FaceFrom::isAnyTimeInterval() const
+bool FaceFrom::isAnyDayInterval() const
 {
-    return timeIntervalIsAny(config_.timeInterval_);
+    return dayIntervalIsAny(config_.dayInterval_);
 }
 
 void FaceFrom::init_()
@@ -479,31 +495,31 @@ void FaceFrom::init_()
     });
 
     // wLabTimeIntervalDesc_
-    wLabTimeInterval_.create(*this);
-    place_["wGrid"] << wLabTimeInterval_;
-    wLabTimeInterval_.typeface(labelsFont);
-    wLabTimeInterval_.fgcolor(labelsFgColor);
-    wLabTimeInterval_.caption("In time interval:");
-    wLabTimeInterval_.transparent(true);
-    wLabTimeInterval_.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
+    dayIntervalLabel_.create(*this);
+    place_["wGrid"] << dayIntervalLabel_;
+    dayIntervalLabel_.typeface(labelsFont);
+    dayIntervalLabel_.fgcolor(labelsFgColor);
+    dayIntervalLabel_.caption("In period:");
+    dayIntervalLabel_.transparent(true);
+    dayIntervalLabel_.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
 
     // wComboTimeInterval_
-    wComboTimeInterval_.create(*this);
-    place_["wGrid"] << wComboTimeInterval_;
-    wComboTimeInterval_.bgcolor(nana::color(255, 255, 155));
-    wComboTimeInterval_.events().click([&]()
+    dayIntervalCombo_.create(*this);
+    place_["wGrid"] << dayIntervalCombo_;
+    dayIntervalCombo_.bgcolor(nana::color(255, 255, 155));
+    dayIntervalCombo_.events().click([&]()
     {
-        if (timeIntervalForm_) {
-            timeIntervalForm_ = std::make_unique<TimeIntervalForm>(timeIntervalForm_->getTimeInterval() ,*this);
+        if (dayIntervalForm_) {
+            dayIntervalForm_ = std::make_unique<DayIntervalForm>(dayIntervalForm_->getDayInterval() ,*this);
         }
         else {
-            timeIntervalForm_ = std::make_unique<TimeIntervalForm>(config_.timeInterval_, *this);
+            dayIntervalForm_ = std::make_unique<DayIntervalForm>(config_.dayInterval_, *this);
         }
 
-        timeIntervalForm_->show();
-        timeIntervalForm_->modality();
+        dayIntervalForm_->show();
+        dayIntervalForm_->modality();
 
-        updateTimeIntervalCaption(timeIntervalForm_->getTimeInterval());
+        updateDayIntervalCaption(dayIntervalForm_->getDayInterval());
         
         updateConfigState();
     });
@@ -575,8 +591,8 @@ void FaceFrom::init_()
         config_.inactive_ = wSpinIdleTimer_.to_int();
         config_.warn_ = wSpinWarnTimer_.to_int();
         config_.checkMouseMovement_ = (wCheckMouseMove_.checked() ? 1 : 0);
-        if (timeIntervalForm_) {
-            config_.timeInterval_ = timeIntervalForm_->getTimeInterval();
+        if (dayIntervalForm_) {
+            config_.dayInterval_ = dayIntervalForm_->getDayInterval();
         }
 
         config_.save();
@@ -588,7 +604,7 @@ void FaceFrom::init_()
     wComboAction_.option((size_t)config_.action_);
     wSpinIdleTimer_.value(std::to_string(config_.inactive_));
     wSpinWarnTimer_.value(std::to_string(config_.warn_));
-    updateTimeIntervalCaption(config_.timeInterval_);
+    updateDayIntervalCaption(config_.dayInterval_);
     wCheckMouseMove_.check(config_.checkMouseMovement_);
 
     updateWarnSpinboxRange();
@@ -605,7 +621,7 @@ void FaceFrom::updateConfigState()
         && wSpinIdleTimer_.to_int() == config_.inactive_
         && wSpinWarnTimer_.to_int() == config_.warn_
         && wCheckMouseMove_.checked() == config_.checkMouseMovement_
-        && (!timeIntervalForm_ || timeIntervalForm_->getTimeInterval().isEq(config_.timeInterval_)))
+        && (!dayIntervalForm_ || dayIntervalForm_->getDayInterval().isEq(config_.dayInterval_)))
     {
         wButtSave_.bgcolor(nana::color(30, 240, 30));
         wButtSave_.caption("Saved");
@@ -628,17 +644,40 @@ void FaceFrom::updateWarnSpinboxRange()
     }
 }
 
-void FaceFrom::updateTimeIntervalCaption(const TimeInterval& timeInterval)
+void FaceFrom::updateDayIntervalCaption(const DayInterval& dayInterval)
 {
-    if (timeIntervalIsAny(timeInterval)) {
-        wComboTimeInterval_.caption("Any time");
+    if (dayIntervalIsAny(dayInterval)) {
+        dayIntervalCombo_.caption("Ever");
     }
     else {
-        wComboTimeInterval_.caption(timeInterval.getInTextFormat());
+        std::string caption;
+        if (timeIntervalIsAny(dayInterval.time_)) {
+            caption = "Any time";
+        }
+        else {
+            caption = dayInterval.time_.getInTextFormat();
+        }
+
+        caption += ", ";
+        if (dayInterval.isEnabledAllDays()) {
+            caption += "any days";
+        }
+        else {
+            // First enabled day
+            for (unsigned char day = 0; day < Days::DAY_MAX; ++day) {
+                if (dayInterval.hasDay(day)) {
+                    caption += Days::getDayShort(day);
+                    caption += "...";
+                    break;
+                }
+            }
+        }
+
+        dayIntervalCombo_.caption(caption);
     }
 }
 
-void TimeIntervalForm::HoursComboBox::_m_complete_creation()
+void DayIntervalForm::HoursComboBox::_m_complete_creation()
 {
     nana::combox::_m_complete_creation();
 
@@ -655,7 +694,7 @@ void TimeIntervalForm::HoursComboBox::_m_complete_creation()
     }
 }
 
-void TimeIntervalForm::MinutesComboBox::_m_complete_creation()
+void DayIntervalForm::MinutesComboBox::_m_complete_creation()
 {
     nana::combox::_m_complete_creation();
 
