@@ -28,6 +28,7 @@ struct Days
     };
 
     static const char* getDayShort(unsigned char day);
+    static const char* getDayFull(unsigned char day);
 };
 
 class DayInterval

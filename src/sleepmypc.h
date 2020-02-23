@@ -88,13 +88,17 @@ protected:
 class DayIntervalForm : public nana::form
 {
 public:
-    DayIntervalForm(const DayInterval& initDayInterval, nana::window wd, const ::nana::size& sz = { 220, 140 }, const nana::appearance& apr = { true, true, false, false, false, false, false });
+    DayIntervalForm(const DayInterval& initDayInterval, nana::window wd, const ::nana::size& sz = { 220, 200 }, const nana::appearance& apr = { true, true, false, false, false, false, false });
     ~DayIntervalForm();
 
     const DayInterval& getDayInterval() const { return dayInterval_; }
 
 private:
     void init_();
+    void eventHandler();
+    void enableAllDays();
+    void enableAllTimes();
+    void updateTimes();
 
 protected:
 
@@ -119,8 +123,10 @@ protected:
     MinutesComboBox wComboEndMinutes_;
     nana::checkbox weekCheckBoxes_[Days::DAY_MAX];
     
-    nana::button wButtAnyTime_;
     nana::button wButtSet_;
+    nana::button anyTimeButton_;
+    nana::button anyDaysButton_;
+    nana::button everTimeButton_;
 
     DayInterval dayInterval_;
     bool isTimeChanged_ = false;
@@ -137,7 +143,7 @@ public:
     };
 
 public:
-    FaceFrom(nana::window wd, const ::nana::size& sz = { 260, 230 }, const nana::appearance& apr = { true, true, false, false, true /*min*/, false, false });
+    FaceFrom(nana::window wd, const ::nana::size& sz = { 250, 280 }, const nana::appearance& apr = { true, true, false, false, true /*min*/, false, false });
 
     ~FaceFrom();
 
@@ -165,22 +171,27 @@ private:
 
 protected:
     nana::place place_ { *this };
-    nana::label wLabAction_;
-    nana::combox wComboAction_;
-    nana::label wLabIdleTimer_;
-    nana::spinbox wSpinIdleTimer_;
-    nana::label wLabWarnTimer_;
-    nana::spinbox wSpinWarnTimer_;
-    nana::label dayIntervalLabel_;
+
+    /// Execute
+    nana::label executeLab_;
+    nana::label actionLab_;
+    nana::combox actionCombo_;
+    nana::label idleTimerLab_;
+    nana::spinbox idleTimerSpin_;
+    nana::label warnTimerLab_;
+    nana::spinbox warnTimerSpin_;
+
+    /// Period
+    nana::label dayIntervalLab_;
     nana::combox dayIntervalCombo_;
-    nana::label wLabProgDesc_;
-    nana::label wLabProgVal_;
-    nana::button wButtOptions_;
-    nana::button wButtHistory_;
-    nana::label wLabCop_;
-    nana::checkbox wCheckAutoStart_;
-    nana::checkbox wCheckMouseMove_;
-    nana::button wButtSave_;
+
+    /// Additional options
+    nana::label additionalOptionsLab_;
+    nana::button mouseMoveButton_;
+
+    nana::label progValueLab_;
+    nana::button historyButton_;
+    nana::button saveButton_;
 
     std::unique_ptr<DayIntervalForm> dayIntervalForm_;
     std::unique_ptr<HistoryForm> logForm_;

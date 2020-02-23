@@ -17,12 +17,11 @@ inline bool dayIntervalIsAny(const DayInterval& dayInterval)
     return dayInterval.isEnabledAllDays() && timeIntervalIsAny(dayInterval.time_);
 }
 
-std::unique_ptr<NoticeForm> showNotice(const std::string& msg, nana::window wd)
+void showNotice(const std::string& msg, nana::window wd)
 {
-    auto noticeForm = std::make_unique<NoticeForm>(msg, wd);
-    noticeForm->show();
-    noticeForm->modality();
-    return noticeForm;
+    NoticeForm noticeForm(msg, wd);
+    noticeForm.show();
+    noticeForm.modality();
 }
 
 NoticeForm::NoticeForm(const std::string& message, nana::window wd, const ::nana::size& sz, const nana::appearance& apr)
@@ -175,6 +174,8 @@ void DayIntervalForm::init_()
 
     static const nana::paint::font labelsFont("", 11, { 400 });
 
+    bgcolor(nana::colors::white_smoke);
+
     intervalSeparatorLabel_.create(*this);
     intervalSeparatorLabel_.typeface(labelsFont);
     intervalSeparatorLabel_.caption(" - ");
@@ -186,17 +187,68 @@ void DayIntervalForm::init_()
     wComboEndHours_.create(*this);
     wComboEndMinutes_.create(*this);
 
-    static const char weekDesc[Days::DAY_MAX][4] = { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" };
-
     for (unsigned char i = 0; i < Days::DAY_MAX; ++i) {
         auto& day = weekCheckBoxes_[i];
         day.create(*this);
-        day.caption(weekDesc[i]);
+        day.caption(Days::getDayShort(i));
+        day.transparent(true);
     }
 
     wButtSet_.create(*this);
     wButtSet_.caption("Set");
     wButtSet_.bgcolor(nana::colors::light_green);
+
+    anyTimeButton_.create(*this);
+    anyTimeButton_.caption("Any time");
+
+    anyDaysButton_.create(*this);
+    anyDaysButton_.caption("Any days");
+
+    everTimeButton_.create(*this);
+    everTimeButton_.caption("Ever time");
+
+
+    // Init values
+    for (unsigned char i = 0; i < Days::DAY_MAX; ++i) {
+        weekCheckBoxes_[i].check(dayInterval_.hasDay(i));
+    }
+    wComboBeginHours_.option(dayInterval_.time_.beginHours_);
+    wComboBeginMinutes_.option(dayInterval_.time_.beginMinutes_);
+    wComboEndHours_.option(dayInterval_.time_.endHours_);
+    wComboEndMinutes_.option(dayInterval_.time_.endMinutes_);
+
+    updateTimes();
+
+    eventHandler();
+
+    /// Collate
+    place_.div(""
+        "margin=8 vert"
+        "< weight=15% <intervalBegin> <intervalSeparator vert weight=20> <intervalEnd> >"
+        "<weight=8%> "
+        "< weight=15% <week3> >"
+        "< weight=15% <week4> >"
+        "< <anyTime> <anyDays> <everTime> >"
+        "<weight=10%> "
+        "< <vert weight=50 > <setTime> >"
+        "");
+
+    place_["intervalBegin"] << wComboBeginHours_ << wComboBeginMinutes_;
+    place_["intervalSeparator"] << intervalSeparatorLabel_;
+    place_["intervalEnd"] << wComboEndHours_ << wComboEndMinutes_;
+    place_["week3"] << weekCheckBoxes_[0] << weekCheckBoxes_[1] << weekCheckBoxes_[2];
+    place_["week4"] << weekCheckBoxes_[3] << weekCheckBoxes_[4] << weekCheckBoxes_[5] << weekCheckBoxes_[6];
+    place_["setTime"] << wButtSet_;
+    place_["anyTime"] << anyTimeButton_;
+    place_["anyDays"] << anyDaysButton_;
+    place_["everTime"] << everTimeButton_;
+
+    place_.collocate();
+
+}
+
+void DayIntervalForm::eventHandler()
+{
     wButtSet_.events().click([&]()
     {
         dayInterval_.disableAllDays();
@@ -215,47 +267,84 @@ void DayIntervalForm::init_()
         close();
     });
 
-    wButtAnyTime_.create(*this);
-    wButtAnyTime_.caption("Any time");
-    wButtAnyTime_.events().click([&]()
+    wComboBeginHours_.events().selected([this]() { updateTimes(); });
+    wComboBeginMinutes_.events().selected([this]() { updateTimes(); });
+    wComboEndHours_.events().selected([this]() { updateTimes(); });
+    wComboEndMinutes_.events().selected([this]() { updateTimes(); });
+
+    // Prevent all days off
+    for (unsigned char checkI = 0; checkI < Days::DAY_MAX; ++checkI) {
+        weekCheckBoxes_[checkI].events().checked([this, checkI]()
+        {
+            if (!weekCheckBoxes_[checkI].checked()) {
+                for (unsigned char otherI = 0; otherI < Days::DAY_MAX; ++otherI) {
+                    if (checkI == otherI) {
+                        continue;
+                    }
+                    if (weekCheckBoxes_[otherI].checked()) {
+                        return;
+                    }
+                }
+
+                weekCheckBoxes_[checkI].check(true);
+            }
+        });
+    }
+
+    anyTimeButton_.events().click([this]()
     {
-        dayInterval_.enableAllDays();
-        dayInterval_.time_.beginHours_ = 0;
-        dayInterval_.time_.beginMinutes_ = 0;
-        dayInterval_.time_.endHours_ = 0;
-        dayInterval_.time_.endMinutes_ = 0;
-        close();
+        enableAllTimes();
+        updateTimes();
     });
 
-    // Init values
+    anyDaysButton_.events().click([this]()
+    {
+        enableAllDays();
+    });
+
+    everTimeButton_.events().click([this]()
+    {
+        enableAllTimes();
+        enableAllDays();
+
+        updateTimes();
+    });
+}
+
+void DayIntervalForm::enableAllDays()
+{
     for (unsigned char i = 0; i < Days::DAY_MAX; ++i) {
-        weekCheckBoxes_[i].check(dayInterval_.hasDay(i));
+        weekCheckBoxes_[i].check(true);
     }
-    wComboBeginHours_.option(dayInterval_.time_.beginHours_);
-    wComboBeginMinutes_.option(dayInterval_.time_.beginMinutes_);
-    wComboEndHours_.option(dayInterval_.time_.endHours_);
-    wComboEndMinutes_.option(dayInterval_.time_.endMinutes_);
+}
 
+void DayIntervalForm::enableAllTimes()
+{
+    wComboBeginHours_.option(0);
+    wComboBeginMinutes_.option(0);
+    wComboEndHours_.option(0);
+    wComboEndMinutes_.option(0);
+}
 
-    /// Collate
-    place_.div("margin=4 vert"
-        "< weight=25% <intervalBegin> <vert intervalSeparator weight=20> <intervalEnd> >"
-        "<weight=10%> "
-        "< weight=20% <week3> >"
-        "< weight=20% <week4> >"
-        "<weight=10%> "
-        "< <anyTime> <setTime> >");
+void DayIntervalForm::updateTimes()
+{
+    static const nana::color defColor;
 
-    place_["intervalBegin"] << wComboBeginHours_ << wComboBeginMinutes_;
-    place_["intervalSeparator"] << intervalSeparatorLabel_;
-    place_["intervalEnd"] << wComboEndHours_ << wComboEndMinutes_;
-    place_["week3"] << weekCheckBoxes_[0] << weekCheckBoxes_[1] << weekCheckBoxes_[2];
-    place_["week4"] << weekCheckBoxes_[3] << weekCheckBoxes_[4] << weekCheckBoxes_[5] << weekCheckBoxes_[6];
-    place_["setTime"] << wButtSet_;
-    place_["anyTime"] << wButtAnyTime_;
-
-    place_.collocate();
-
+    if (wComboBeginHours_.option() == 0
+        && wComboBeginMinutes_.option() == 0
+        && wComboEndHours_.option() == 0
+        && wComboEndMinutes_.option() == 0) {
+        wComboBeginHours_.fgcolor(nana::colors::light_gray);
+        wComboBeginMinutes_.fgcolor(nana::colors::light_gray);
+        wComboEndHours_.fgcolor(nana::colors::light_gray);
+        wComboEndMinutes_.fgcolor(nana::colors::light_gray);
+    }
+    else {  
+        wComboBeginHours_.fgcolor(defColor);
+        wComboBeginMinutes_.fgcolor(defColor);
+        wComboEndHours_.fgcolor(defColor);
+        wComboEndMinutes_.fgcolor(defColor);
+    }
 }
 
 FaceFrom::FaceFrom(nana::window wd, const nana::size& sz /*= { 260, 200 }*/, const nana::appearance& apr /*= { true, true, false, false, false, false, false }*/)
@@ -302,19 +391,19 @@ void FaceFrom::updateProgState(ECurrentStatus currentStatus)
     switch (currentStatus)
     {
         case FaceFrom::ECurrentStatus::Active:
-            wLabProgVal_.caption("Active");
-            wLabProgVal_.bgcolor(nana::colors::yellow_green);
+            progValueLab_.caption("Active");
+            progValueLab_.bgcolor(nana::colors::yellow_green);
 
             break;
         case FaceFrom::ECurrentStatus::Inactive:
-            wLabProgVal_.caption("Idle");
-            wLabProgVal_.bgcolor(nana::colors::yellow);
+            progValueLab_.caption("Idle");
+            progValueLab_.bgcolor(nana::colors::orange);
 
             break;
         case FaceFrom::ECurrentStatus::Disabled:
         default:
-            wLabProgVal_.caption("Disabled");
-            wLabProgVal_.bgcolor(nana::colors::button_face);
+            progValueLab_.caption("Disabled");
+            progValueLab_.bgcolor(nana::colors::light_slate_gray);
             break;
     }
 }
@@ -322,7 +411,7 @@ void FaceFrom::updateProgState(ECurrentStatus currentStatus)
 void FaceFrom::updateWarningCaption(size_t remainingTime)
 {
     if (warnForm_) {
-        warnForm_->updateWarningCaption(remainingTime, wComboAction_.caption());
+        warnForm_->updateWarningCaption(remainingTime, actionCombo_.caption());
     }
 }
 
@@ -338,7 +427,7 @@ void FaceFrom::processTriggeredAction()
     // Remove endline
     writeMsg.append(date, strlen(date) - 1); 
     writeMsg += "\t";
-    writeMsg += wComboAction_.caption();
+    writeMsg += actionCombo_.caption();
     writeMsg += "\r\n";
 
     fwrite(writeMsg.c_str(), 1, writeMsg.size(), file);
@@ -349,7 +438,7 @@ void FaceFrom::processTriggeredAction()
     showNotice("Action triggered!", *this);
 #else
 
-    const EAction action = (EAction)wComboAction_.option();
+    const EAction action = (EAction)actionCombo_.option();
 	
     switch (action)
     {
@@ -405,107 +494,85 @@ void FaceFrom::init_()
         showNotice(std::string("Error reading configuration file - ") + e.what(), *this);
     }
 
-    static const nana::paint::font labelsFont("", 11, { 400, true, true, false });
-    static const nana::color labelsFgColor(22, 22, 22);
-
-    // Set ico to form
+    // Set ico to form from exe path
     std::wstring app_path(1024, '\0');
     size_t applicationFilePath = (size_t)GetModuleFileNameW(0, &app_path.front(), (DWORD)app_path.size());
     if (applicationFilePath > 0) {
         app_path.resize(applicationFilePath);
-        this->icon(nana::paint::image(app_path));
+        icon(nana::paint::image(app_path));
     }
     else {
         showNotice("Unable to set icon for form", *this);
     }
 
-    this->caption("sleep my PC");
-    this->bgcolor(nana::color(234, 243, 255));
+    static const nana::paint::font descriptionsFont("", 12, { 400, true, true, false });
+    static const nana::paint::font definitionFont("", 11, { 400, false, false, false });
+    static const nana::paint::font buttonFont("", 12, { 400, false, false, false });
 
-    place_.div("margin=8 <grid=[2,9] margin=4 gap=5 wGrid>");
-    
-    // Fill empty places
-    static nana::panel<true> wEmptyPlace;
-    wEmptyPlace.create(*this);
-    wEmptyPlace.transparent(true);
+    caption("sleep my PC");
+    bgcolor(nana::colors::white_smoke);
 
-    // wLabAction_
-    wLabAction_.create(*this);
-    place_["wGrid"] << wLabAction_;
-    wLabAction_.bgcolor(nana::color(212, 111, 111));
-    wLabAction_.typeface(labelsFont);
-    wLabAction_.caption("Action:");
-    wLabAction_.transparent(true);
-    wLabAction_.fgcolor(labelsFgColor);
-    wLabAction_.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
+    executeLab_.create(*this);
+    executeLab_.caption("Execute action");
+    executeLab_.typeface(descriptionsFont);
+    executeLab_.transparent(true);
+    executeLab_.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
 
-    // wComboAction_
-    wComboAction_.create(*this);
-    place_["wGrid"] << wComboAction_;
-    wComboAction_.bgcolor(nana::color(255, 255, 155));
-    wComboAction_.push_back("No");
-    wComboAction_.push_back("Shutdown");
-    wComboAction_.push_back("Restart");
-    wComboAction_.push_back("Log off");
-    wComboAction_.push_back("Hibernation");
-    wComboAction_.option((size_t)EAction::No);
-    wComboAction_.events().selected([&]()
+    actionLab_.create(*this);
+    actionLab_.caption("Action type");
+    actionLab_.transparent(true);
+    actionLab_.typeface(definitionFont);
+    actionLab_.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
+
+    actionCombo_.create(*this);
+    actionCombo_.bgcolor(nana::color(255, 255, 155));
+    actionCombo_.push_back("No");
+    actionCombo_.push_back("Shutdown");
+    actionCombo_.push_back("Restart");
+    actionCombo_.push_back("Log off");
+    actionCombo_.push_back("Hibernation");
+    actionCombo_.option((size_t)EAction::No);
+    actionCombo_.events().selected([&]()
     {
         updateConfigState();
     });
 
-    // wLabIdleTimer_
-    wLabIdleTimer_.create(*this);
-    place_["wGrid"] << wLabIdleTimer_;
-    wLabIdleTimer_.typeface(labelsFont);
-    wLabIdleTimer_.fgcolor(labelsFgColor);
-    wLabIdleTimer_.caption("When inactive:");
-    wLabIdleTimer_.transparent(true);
-    wLabIdleTimer_.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
+    idleTimerLab_.create(*this);
+    idleTimerLab_.caption("When inactive");
+    idleTimerLab_.typeface(definitionFont);
+    idleTimerLab_.transparent(true);
+    idleTimerLab_.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
 
-    // wSpinIdleTimer_
-    wSpinIdleTimer_.create(*this);
-    place_["wGrid"] << wSpinIdleTimer_;
-    wSpinIdleTimer_.modifier("", " min");
-    wSpinIdleTimer_.range(1, 460800, 1); // 320 months 
-    wSpinIdleTimer_.events().text_changed([&]()
+    idleTimerSpin_.create(*this);
+    idleTimerSpin_.modifier("", " min");
+    idleTimerSpin_.range(1, 460800, 1); // 320 months 
+    idleTimerSpin_.events().text_changed([&]()
     {
         updateWarnSpinboxRange();
-
         updateConfigState();
     });
 
-    // wLabWarnTimer
-    wLabWarnTimer_.create(*this);
-    place_["wGrid"] << wLabWarnTimer_;
-    wLabWarnTimer_.typeface(labelsFont);
-    wLabWarnTimer_.fgcolor(labelsFgColor);
-    wLabWarnTimer_.caption("Warn when left:");
-    wLabWarnTimer_.transparent(true);
-    wLabWarnTimer_.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
+    warnTimerLab_.create(*this);
+    warnTimerLab_.typeface(definitionFont);
+    warnTimerLab_.caption("Warn when left");
+    warnTimerLab_.transparent(true);
+    warnTimerLab_.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
 
-    // wSpinWarnTimer_
-    wSpinWarnTimer_.create(*this);
-    place_["wGrid"] << wSpinWarnTimer_;
-    wSpinWarnTimer_.modifier("", " secs");
-    wSpinWarnTimer_.range(1, ((wSpinIdleTimer_.range_int().second * 60) - 1), 1); // like idle timer -1
-    wSpinWarnTimer_.events().text_changed([&]()
+    warnTimerSpin_.create(*this);
+    warnTimerSpin_.modifier("", " secs");
+    warnTimerSpin_.range(1, ((idleTimerSpin_.range_int().second * 60) - 1), 1); // like idle timer -1
+    warnTimerSpin_.events().text_changed([&]()
     {
         updateConfigState();
     });
 
-    // wLabTimeIntervalDesc_
-    dayIntervalLabel_.create(*this);
-    place_["wGrid"] << dayIntervalLabel_;
-    dayIntervalLabel_.typeface(labelsFont);
-    dayIntervalLabel_.fgcolor(labelsFgColor);
-    dayIntervalLabel_.caption("In period:");
-    dayIntervalLabel_.transparent(true);
-    dayIntervalLabel_.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
+    dayIntervalLab_.create(*this);
+    dayIntervalLab_.typeface(definitionFont);
+    dayIntervalLab_.caption("In period");
+    dayIntervalLab_.transparent(true);
+    dayIntervalLab_.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
 
-    // wComboTimeInterval_
     dayIntervalCombo_.create(*this);
-    place_["wGrid"] << dayIntervalCombo_;
     dayIntervalCombo_.bgcolor(nana::color(255, 255, 155));
     dayIntervalCombo_.events().click([&]()
     {
@@ -524,73 +591,44 @@ void FaceFrom::init_()
         updateConfigState();
     });
 
+    additionalOptionsLab_.create(*this);
+    additionalOptionsLab_.caption("Additional options");
+    additionalOptionsLab_.typeface(descriptionsFont);
+    additionalOptionsLab_.transparent(true);
+    additionalOptionsLab_.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
 
-    // wLabProgDesc
-    wLabProgDesc_.create(*this);
-    place_["wGrid"] << wLabProgDesc_;
-    wLabProgDesc_.typeface(labelsFont);
-    wLabProgDesc_.fgcolor(labelsFgColor);
-    wLabProgDesc_.caption("Current status:");
-    wLabProgDesc_.transparent(true);
-    wLabProgDesc_.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
-
-    // wLabProgVal
-    wLabProgVal_.create(*this);
-    place_["wGrid"] << wLabProgVal_;
-    wLabProgVal_.typeface(nana::paint::font("", 11, { 400, false, false, false }));
-    wLabProgVal_.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
-
-    place_["wGrid"] << wEmptyPlace;
-
-    // wCheckMouseMove
-    wCheckMouseMove_.create(*this);
-    wCheckMouseMove_.transparent(true);
-    place_["wGrid"] << wCheckMouseMove_;
-    wCheckMouseMove_.caption("Check mouse");
-    wCheckMouseMove_.typeface(nana::paint::font("", 11, { 400, false, false, false }));
-    wCheckMouseMove_.fgcolor(labelsFgColor);
-    wCheckMouseMove_.events().checked([&]()
+    mouseMoveButton_.create(*this);
+    mouseMoveButton_.caption("Check mouse movement");
+    mouseMoveButton_.typeface(buttonFont);
+    mouseMoveButton_.enable_pushed(true);
+    mouseMoveButton_.events().click([&]()
     {
         updateConfigState();
     });
 
-    place_["wGrid"] << wEmptyPlace;
 
-    // wButtHistory
-    wButtHistory_.create(*this);
-    place_["wGrid"] << wButtHistory_;
-    wButtHistory_.typeface(nana::paint::font("", 12, { 400, false, false, false }));
-    wButtHistory_.caption("History");
-    wButtHistory_.events().click([&]()
+    progValueLab_.create(*this);
+    progValueLab_.typeface(nana::paint::font("", 11, { 400, false, false, false }));
+    progValueLab_.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
+
+    historyButton_.create(*this);
+    historyButton_.typeface(buttonFont);
+    historyButton_.caption("History");
+    historyButton_.events().click([&]()
     {
         logForm_.reset();
         logForm_ = std::make_unique<HistoryForm>(*this);
         logForm_->show();
     });
 
-
-    // Spaces
-    place_["wGrid"] << wEmptyPlace;
-    place_["wGrid"] << wEmptyPlace;
-
-    // wLabCop
-    wLabCop_.create(*this);
-    place_["wGrid"] << wLabCop_;
-    wLabCop_.typeface(nana::paint::font("", 9, { 400, false, true, false }));
-    wLabCop_.caption("rescr1pt@ya.ru (c)");
-    wLabCop_.transparent(true);
-    wLabCop_.text_align(static_cast<nana::align>(1), static_cast<nana::align_v>(1));
-
-    // wButtSave		
-    wButtSave_.create(*this);
-    place_["wGrid"] << wButtSave_;
-    wButtSave_.typeface(nana::paint::font("", 12, { 400, false, false, false }));
-    wButtSave_.events().click([&]()
+    saveButton_.create(*this);
+    saveButton_.typeface(buttonFont);
+    saveButton_.events().click([&]()
     {
-        config_.action_ = (EAction)wComboAction_.option();
-        config_.inactive_ = wSpinIdleTimer_.to_int();
-        config_.warn_ = wSpinWarnTimer_.to_int();
-        config_.checkMouseMovement_ = (wCheckMouseMove_.checked() ? 1 : 0);
+        config_.action_ = (EAction)actionCombo_.option();
+        config_.inactive_ = idleTimerSpin_.to_int();
+        config_.warn_ = warnTimerSpin_.to_int();
+        config_.checkMouseMovement_ = (mouseMoveButton_.pushed() ? 1 : 0);
         if (dayIntervalForm_) {
             config_.dayInterval_ = dayIntervalForm_->getDayInterval();
         }
@@ -600,47 +638,78 @@ void FaceFrom::init_()
         updateConfigState();
     });
 
-    // First values
-    wComboAction_.option((size_t)config_.action_);
-    wSpinIdleTimer_.value(std::to_string(config_.inactive_));
-    wSpinWarnTimer_.value(std::to_string(config_.warn_));
+    actionCombo_.option((size_t)config_.action_);
+    idleTimerSpin_.value(std::to_string(config_.inactive_));
+    warnTimerSpin_.value(std::to_string(config_.warn_));
     updateDayIntervalCaption(config_.dayInterval_);
-    wCheckMouseMove_.check(config_.checkMouseMovement_);
+    mouseMoveButton_.pushed(config_.checkMouseMovement_);
 
     updateWarnSpinboxRange();
 
     updateConfigState();
     updateProgState(ECurrentStatus::Disabled);
 
+    place_["executeLab"] << executeLab_;
+    place_["actionGrid"] 
+        << actionLab_ 
+        << actionCombo_
+        << idleTimerLab_
+        << idleTimerSpin_
+        << warnTimerLab_
+        << warnTimerSpin_;
+
+    place_["periodLab"] << dayIntervalLab_;
+    place_["periodCombo"] << dayIntervalCombo_;
+    place_["additionalOptionsLab"] << additionalOptionsLab_;
+    place_["mouseMoveButton"] << mouseMoveButton_;
+    place_["progValueLab"] << progValueLab_;
+    place_["historyButton"] << historyButton_;
+    place_["saveButton"] << saveButton_;
+
+    place_.div(""
+        "margin=4 vert "
+        "< executeLab> "
+        " <weight=2%> "
+        "< gap=4 grid=[2,3] actionGrid weight=25%> "
+        " <weight=6%> "
+        "< <periodLab vert weight=30%> <periodCombo> weight=10%  > "
+        " <weight=4%> "
+         "< <vert weight=8%> <mouseMoveButton > <vert weight=8%> weight=10% > "
+        " <weight=5%> "
+        "< progValueLab weight=10% > "
+        " <weight=4%> "
+        "< <historyButton> <vert weight=2%> <saveButton> >"
+        "");
+
     place_.collocate();
 }
 
 void FaceFrom::updateConfigState()
 {
-    if (wComboAction_.option() == (size_t)config_.action_
-        && wSpinIdleTimer_.to_int() == config_.inactive_
-        && wSpinWarnTimer_.to_int() == config_.warn_
-        && wCheckMouseMove_.checked() == config_.checkMouseMovement_
+    if (actionCombo_.option() == (size_t)config_.action_
+        && idleTimerSpin_.to_int() == config_.inactive_
+        && warnTimerSpin_.to_int() == config_.warn_
+        && mouseMoveButton_.pushed() == config_.checkMouseMovement_
         && (!dayIntervalForm_ || dayIntervalForm_->getDayInterval().isEq(config_.dayInterval_)))
     {
-        wButtSave_.bgcolor(nana::color(30, 240, 30));
-        wButtSave_.caption("Saved");
-        wButtSave_.enabled(false);
+        saveButton_.bgcolor(nana::color(30, 240, 30));
+        saveButton_.caption("Save");
+        saveButton_.enabled(false);
     }
     else {
-        wButtSave_.bgcolor(nana::color(255, 0, 0));
-        wButtSave_.caption("Save*");
-        wButtSave_.enabled(true);
+        saveButton_.bgcolor(nana::color(255, 0, 0));
+        saveButton_.caption("Save*");
+        saveButton_.enabled(true);
     }
 }
 
 void FaceFrom::updateWarnSpinboxRange()
 {
-    int lastVal = wSpinWarnTimer_.to_int();
-    wSpinWarnTimer_.range(0, (wSpinIdleTimer_.to_int() * 60) - 1, 1);
+    int lastVal = warnTimerSpin_.to_int();
+    warnTimerSpin_.range(0, (idleTimerSpin_.to_int() * 60) - 1, 1);
 
-    if (wSpinWarnTimer_.range_int().second >= lastVal) {
-        wSpinWarnTimer_.value(std::to_string(lastVal));
+    if (warnTimerSpin_.range_int().second >= lastVal) {
+        warnTimerSpin_.value(std::to_string(lastVal));
     }
 }
 
@@ -658,17 +727,29 @@ void FaceFrom::updateDayIntervalCaption(const DayInterval& dayInterval)
             caption = dayInterval.time_.getInTextFormat();
         }
 
-        caption += ", ";
+        caption += ". ";
         if (dayInterval.isEnabledAllDays()) {
-            caption += "any days";
+            caption += "Any days";
         }
         else {
             // First enabled day
-            for (unsigned char day = 0; day < Days::DAY_MAX; ++day) {
+            static const unsigned char showDayMax = 1;
+
+            for (unsigned char day = 0, showDayCount = 0; day < Days::DAY_MAX; ++day) {
                 if (dayInterval.hasDay(day)) {
-                    caption += Days::getDayShort(day);
-                    caption += "...";
-                    break;
+                    if (showDayCount < showDayMax) {
+                        if (showDayCount != 0) {
+                            caption += ", ";
+                        }
+
+                        caption += Days::getDayFull(day);
+                    }
+                    else {
+                        caption += ", ...";
+                        break;
+                    }
+
+                    ++showDayCount;
                 }
             }
         }
