@@ -35,6 +35,7 @@ class DayInterval
 {
 public:
     bool isEq(const DayInterval& right) const { return days_ == right.days_ && time_.isEq(right.time_); }
+    bool isAny() const { return isEnabledAllDays() && time_.isAny(); }
 
     // By flags
     inline void enableDays(unsigned char daysFlag) { days_ = ((days_) | daysFlag); }

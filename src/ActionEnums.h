@@ -15,4 +15,25 @@ enum class EAction : size_t
     Hibernation
 };
 
+static const char* getActionName(EAction action)
+{
+    switch (action)
+    {
+        case EAction::No:
+            return "No";
+        case EAction::Shutdown:
+            return "Shutdown";
+        case EAction::Restart:
+            return "Restart";
+        case EAction::Logoff:
+            return "Logoff";
+        case EAction::Hibernation:
+            return "Hibernation";
+        default:
+            break;
+    }
+
+    return "";
+}
+
 #endif

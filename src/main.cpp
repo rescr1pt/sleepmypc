@@ -2,18 +2,22 @@
    author: rescr1pt@.ya.ru
 */
 
-#include "sleepmypc.h"
+#include "DashboardForm.h"
+
+#include <nana/gui/timer.hpp>
 
 #include <windows.h>
 
-class ExternalEventHook
+typedef std::chrono::steady_clock SteadyClock;
+
+class UserEventEngine
 {
 public:
-    ExternalEventHook() 
+    UserEventEngine() 
     {
     }
 
-    ~ExternalEventHook()
+    ~UserEventEngine()
     {
         if (mouseHook_) {
             UnhookWindowsHookEx(mouseHook_);
@@ -24,57 +28,45 @@ public:
         }
     }
 
-    static ExternalEventHook& instance()
+    static UserEventEngine& instance()
     {
-        static ExternalEventHook me;
+        static UserEventEngine me;
         return me;
     }
 
-    void init(FaceFrom& face, HINSTANCE hInstance)
+    void init(DashboardForm& dashboard, HINSTANCE hInstance)
     {
-        face_ = &face;
+        dashboard_ = &dashboard;
         hInstance_ = hInstance;
     }
 
-    void execTimer()
+    void disable()
     {
-        bool isInTimeInterval = false;
+        if (wasEnabled_) {
+            wasEnabled_ = false;
 
-        if (face_->isAnyDayInterval()) {
-            isInTimeInterval = true;
+            UnhookWindowsHookEx(mouseHook_);
+            UnhookWindowsHookEx(keyboardHook_);
         }
-        else {
-            time_t currentTime;
-            struct tm* localTime;
-            time(&currentTime);
-            localTime = localtime(&currentTime);
+    }
 
-            const auto& interval = face_->getDayInterval();
+    void execStep()
+    {
+        time_t currentTime;
+        struct tm* localTime;
+        time(&currentTime);
+        localTime = localtime(&currentTime);
 
-            if (interval.hasDay((unsigned char)localTime->tm_wday - 1) 
-                && interval.time_.isInInterval((unsigned char)localTime->tm_hour, (unsigned char)localTime->tm_min)) {
-                isInTimeInterval = true;
-            }
-        }
+        bool foundObservedConfig = dashboard_->findObservedConfig((unsigned char)localTime->tm_wday - 1, (unsigned char)localTime->tm_hour, (unsigned char)localTime->tm_min, observedConfig_);
 
-        // Disabled
-        if (!isInTimeInterval || face_->getConfInactive() == 0 || face_->actionIsNone()) {
-            if (wasEnabled_) {
-                wasEnabled_ = false;
-
-                face_->updateProgState(FaceFrom::ECurrentStatus::Disabled);
-
-                UnhookWindowsHookEx(mouseHook_);
-                UnhookWindowsHookEx(keyboardHook_);
-            }
-
+        if (!foundObservedConfig) {
+            disable();
             return;
         }
 
-        const static size_t inactiveCursorMovePerSec = 10;
-
         auto now = SteadyClock::now();
 
+        // Reset hooks and timers
         if (!wasEnabled_) {
             wasEnabled_ = true;
 
@@ -91,127 +83,36 @@ public:
                 hInstance_,
                 0);
 
-            mouseInfo_.reset(now);
-            prevIsActive_ = true;
-
-            idleTimer_ = now;
-            progStateTimer_ = now;
+            lastActionTime_ = now;
         }
 
-        // User active detector
-        bool nextActive;
+        auto idleTimerDiff = std::chrono::duration_cast<std::chrono::seconds>(now - lastActionTime_);
 
-        if (prevIsActive_) {
-            nextActive = true;
-
-            if (face_->isCheckMouseMovement()) {
-                if (nextActive && mouseInfo_.movedCount_ == 0) {
-                    nextActive = false;
-                }
-            }
-
-            if (nextActive && !mouseInfo_.wasAction_) {
-                nextActive = false;
-            }
-
-            if (nextActive && keyboardInfo_.pressed_) {
-                nextActive = true;
-            }
-
-            mouseInfo_.reset(now);
-            keyboardInfo_.reset();
-        }
-        else {
-            nextActive = false;
-
-            // Mouse move event
-            if (face_->isCheckMouseMovement()) {
-                auto idleTimerDiff = std::chrono::duration_cast<std::chrono::milliseconds>(now - mouseInfo_.lastMoveTimer_);
-                if (!nextActive && idleTimerDiff.count() > 500) {
-                    if ((mouseInfo_.movedCount_ > inactiveCursorMovePerSec)) {
-                        nextActive = true;
-                    }
-                    mouseInfo_.updateTimer(now);
-                }
-            }
-
-            if (!nextActive && mouseInfo_.wasAction_) {
-                nextActive = true;
-            }
-
-            // Keyboard event 
-            if (!nextActive && keyboardInfo_.pressed_) {
-                nextActive = true;
-            }
-
-            if (nextActive) {
-                mouseInfo_.reset(now);
-                keyboardInfo_.reset();
-            }
+        if ((size_t)idleTimerDiff.count() >= observedConfig_.triggerActionWhendleSecs_) {
+            dashboard_->processTriggeredAction(observedConfig_.triggerActionIndex_);
+            disable();
+            return;
         }
 
-        // Active
-        if (nextActive) {
-            // Wakeup
-            idleTimer_ = now;
-            progStateTimer_ = now;
-
-            if (!prevIsActive_) {
-                face_->showWarning(false);
-                face_->updateProgState(FaceFrom::ECurrentStatus::Active);
-            }
-        }
-        // Idle
-        else {
-            auto idleTimerDiff = std::chrono::duration_cast<std::chrono::seconds>(now - idleTimer_);
-            const size_t maxInactiveSeconds = face_->getConfInactive() * 60;
-                        
-            if ((size_t)idleTimerDiff.count() >= maxInactiveSeconds) {
-                face_->processTriggeredAction();
-                face_->close();
-                return;
-            }
-
-            // Warning window processing
-            if (face_->getConfWarn() > 0) {
-                size_t remainingSecs = maxInactiveSeconds - idleTimerDiff.count();
-
-                if (remainingSecs < face_->getConfWarn()) {
-                    if (!face_->isShowWarning()) {
-                        face_->showWarning(true);
-                    }
-
-                    face_->updateWarningCaption(remainingSecs);
-                }
-            }
-            
-            // Progress label processing 
-            auto progTimerDiff = std::chrono::duration_cast<std::chrono::seconds>(now - progStateTimer_);
-            if (progTimerDiff.count() > 2) {
-                face_->updateProgState(FaceFrom::ECurrentStatus::Inactive);
-                progStateTimer_ = now;
-            }
+        if ((size_t)idleTimerDiff.count() >= observedConfig_.warnActionWhenIdleSecs_) {
+            dashboard_->updateWarningCaption(observedConfig_.warnActionIndex_);
         }
 
-        prevIsActive_ = nextActive;
     }
 
 private:
     static LRESULT CALLBACK mouseHookProcess(int nCode, WPARAM wParam, LPARAM lParam)
     {
-        auto& mouseInfo = instance().mouseInfo_;
-
         switch (wParam)
         {
             case WM_MOUSEMOVE:
             {
-                ++mouseInfo.movedCount_;
-      
+
                 break;
             }
             default:
             {
-                mouseInfo.wasAction_ = true;
+                instance().lastActionTime_ = SteadyClock::now();
                 break;
             }
         }
@@ -221,13 +122,11 @@ private:
     
     static LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam)
     {
-        auto& keyboardInfo = instance().keyboardInfo_;
-
         switch (wParam)
         {
             case WM_KEYDOWN:
             {
-                keyboardInfo.pressed_ = true;
+                instance().lastActionTime_ = SteadyClock::now();
 
                 break;
             }
@@ -241,49 +140,18 @@ private:
     }
 
 private:
-    struct MouseInfo
-    {
-        size_t movedCount_ = 0;
-        bool wasAction_ = false;
-
-        SteadyClock::time_point lastMoveTimer_;
-
-        void updateTimer(const SteadyClock::time_point& time)
-        {
-            lastMoveTimer_ = time;
-        }
-
-        void reset(const SteadyClock::time_point& time)
-        {
-            wasAction_ = false;
-            movedCount_ = 0;
-            updateTimer(time);
-        }
-    } mouseInfo_;
-
-    struct KeyboardInfo
-    {
-        bool pressed_ = false;
-
-        void reset()
-        {
-            pressed_ = false;
-        }
-    } keyboardInfo_;
 
 private:
-    FaceFrom* face_ = nullptr;
+    DashboardForm* dashboard_ = nullptr;
+    DashboardForm::ObservedConfig observedConfig_;
     HINSTANCE hInstance_ = nullptr;
 
     HHOOK mouseHook_ = nullptr;
     HHOOK keyboardHook_ = nullptr;
 
-    SteadyClock::time_point idleTimer_;
-    SteadyClock::time_point progStateTimer_;
+    SteadyClock::time_point lastActionTime_;
 
     bool wasEnabled_ = false;
-    bool prevIsActive_ = true;
-    bool showWarn_ = false;
 };
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpCmdLine*/, int /*nShowCmd*/)
@@ -293,21 +161,22 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
         return 1;
     }
 
-    FaceFrom face(0);
+    DashboardForm dashboard(0);
 
-    auto& externalEventHook = ExternalEventHook::instance();
-    externalEventHook.init(face, hInstance);
+    auto& userEventEngine = UserEventEngine::instance();
+    userEventEngine.init(dashboard, hInstance);
 
     nana::timer timer{ std::chrono::milliseconds{250} };
-    timer.elapse([&externalEventHook] {
-        externalEventHook.execTimer();
+    timer.elapse([&userEventEngine] {
+        userEventEngine.execStep();
     });
     timer.start();
 
-    face.show();
+    dashboard.show();
 
     nana::exec();
     timer.stop();
+    
 
     ReleaseMutex(duplicateInstanceMutex);
     CloseHandle(duplicateInstanceMutex);

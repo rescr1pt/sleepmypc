@@ -17,6 +17,7 @@ struct TimeInterval
 
     bool isEq(const TimeInterval& right) const;
     bool isInInterval(unsigned char hours, unsigned char minutes) const;
+    inline bool isAny() const { return beginHours_ == endHours_ && beginMinutes_ == endMinutes_; }
 
     unsigned char beginHours_ = 0;
     unsigned char beginMinutes_ = 0;

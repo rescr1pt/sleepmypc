@@ -19,17 +19,26 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\Config.cpp" />
+    <ClCompile Include="..\src\CushyConfig.cpp" />
+    <ClCompile Include="..\src\DashboardConfig.cpp" />
+    <ClCompile Include="..\src\DetailsConfig.cpp" />
     <ClCompile Include="..\src\DayInterval.cpp" />
+    <ClCompile Include="..\src\DashboardForm.cpp" />
     <ClCompile Include="..\src\main.cpp" />
-    <ClCompile Include="..\src\sleepmypc.cpp" />
+    <ClCompile Include="..\src\DetailsForm.cpp" />
+    <ClCompile Include="..\src\FormTools.cpp" />
     <ClCompile Include="..\src\TimeInterval.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\ActionEnums.h" />
-    <ClInclude Include="..\src\Config.h" />
+    <ClInclude Include="..\src\CushyConfig.h" />
+    <ClInclude Include="..\src\DashboardConfig.h" />
+    <ClInclude Include="..\src\DashboardDetails.h" />
+    <ClInclude Include="..\src\DetailsConfig.h" />
     <ClInclude Include="..\src\DayInterval.h" />
-    <ClInclude Include="..\src\sleepmypc.h" />
+    <ClInclude Include="..\src\DetailsForm.h" />
+    <ClInclude Include="..\src\DashboardForm.h" />
+    <ClInclude Include="..\src\FormTools.h" />
     <ClInclude Include="..\src\TimeInterval.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
